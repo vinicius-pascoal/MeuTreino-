@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1000462228657",
+    "project_id": "meutreinoplus",
+    "storage_bucket": "meutreinoplus.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000462228657:android:68cd23b322f484563fd690",
+        "android_client_info": {
+          "package_name": "com.viniciuspascoal.meutreinoplus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdp572JbXjrp_mJMQvUVdpx0ycl2tWD7c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
