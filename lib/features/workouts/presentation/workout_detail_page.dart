@@ -12,6 +12,138 @@ class WorkoutDetailPage extends StatelessWidget {
 
   const WorkoutDetailPage({super.key, required this.workout});
 
+  Future<void> _editExerciseDialog({
+    required BuildContext context,
+    required WorkoutExercise exercise,
+  }) async {
+    final service = WorkoutService();
+
+    final setsController = TextEditingController(text: '${exercise.sets}');
+    final repsController = TextEditingController(text: exercise.targetReps);
+    final restController = TextEditingController(
+      text: '${exercise.restSeconds}',
+    );
+    final weightController = TextEditingController(
+      text: exercise.currentWeight.toStringAsFixed(1),
+    );
+    final notesController = TextEditingController(text: exercise.notes);
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(exercise.name),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: setsController,
+                  decoration: const InputDecoration(labelText: 'Séries'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: repsController,
+                  decoration: const InputDecoration(labelText: 'Repetições'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: restController,
+                  decoration: const InputDecoration(
+                    labelText: 'Descanso em segundos',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: weightController,
+                  decoration: const InputDecoration(labelText: 'Carga atual'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Observações'),
+                  minLines: 2,
+                  maxLines: 4,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await service.updateWorkoutExercise(
+                  workoutId: workout.id,
+                  workoutExerciseId: exercise.id,
+                  sets: int.tryParse(setsController.text) ?? exercise.sets,
+                  targetReps: repsController.text,
+                  restSeconds:
+                      int.tryParse(restController.text) ?? exercise.restSeconds,
+                  currentWeight:
+                      double.tryParse(
+                        weightController.text.replaceAll(',', '.'),
+                      ) ??
+                      exercise.currentWeight,
+                  notes: notesController.text,
+                );
+
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    setsController.dispose();
+    repsController.dispose();
+    restController.dispose();
+    weightController.dispose();
+    notesController.dispose();
+  }
+
+  Future<void> _deleteExercise({
+    required BuildContext context,
+    required WorkoutExercise exercise,
+  }) async {
+    final service = WorkoutService();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Excluir exercício'),
+          content: Text('Deseja excluir "${exercise.name}" deste treino?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await service.deleteWorkoutExercise(
+        workoutId: workout.id,
+        workoutExerciseId: exercise.id,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = WorkoutService();
@@ -87,16 +219,57 @@ class WorkoutDetailPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            exercise.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  exercise.name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    _editExerciseDialog(
+                                      context: context,
+                                      exercise: exercise,
+                                    );
+                                  }
+
+                                  if (value == 'delete') {
+                                    _deleteExercise(
+                                      context: context,
+                                      exercise: exercise,
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Editar'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Excluir'),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
                             '${exercise.muscleGroup} • ${exercise.sets} séries • ${exercise.targetReps} reps • ${exercise.restSeconds}s descanso',
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Última carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
+                            style: const TextStyle(
+                              color: Color(0xFF22C55E),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),

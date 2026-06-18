@@ -14,15 +14,19 @@ class WorkoutsPage extends StatefulWidget {
 class _WorkoutsPageState extends State<WorkoutsPage> {
   final _service = WorkoutService();
 
-  Future<void> _createWorkoutDialog() async {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
+  Future<void> _createOrEditWorkoutDialog({Workout? workout}) async {
+    final nameController = TextEditingController(text: workout?.name ?? '');
+    final descriptionController = TextEditingController(
+      text: workout?.description ?? '',
+    );
+
+    final editing = workout != null;
 
     await showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Novo treino'),
+          title: Text(editing ? 'Editar treino' : 'Novo treino'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -52,11 +56,19 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
               onPressed: () async {
                 if (nameController.text.trim().isEmpty) return;
 
-                await _service.createWorkout(
-                  name: nameController.text,
-                  description: descriptionController.text,
-                  weekDays: [],
-                );
+                if (editing) {
+                  await _service.updateWorkout(
+                    workoutId: workout.id,
+                    name: nameController.text,
+                    description: descriptionController.text,
+                  );
+                } else {
+                  await _service.createWorkout(
+                    name: nameController.text,
+                    description: descriptionController.text,
+                    weekDays: [],
+                  );
+                }
 
                 if (dialogContext.mounted) {
                   Navigator.of(dialogContext).pop();
@@ -73,12 +85,40 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
     descriptionController.dispose();
   }
 
+  Future<void> _deleteWorkout(Workout workout) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Excluir treino'),
+          content: Text(
+            'Deseja excluir "${workout.name}"? Os exercícios desse treino também serão removidos.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _service.deleteWorkout(workoutId: workout.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Meus treinos')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createWorkoutDialog,
+        onPressed: () => _createOrEditWorkoutDialog(),
         icon: const Icon(Icons.add),
         label: const Text('Treino'),
       ),
@@ -118,7 +158,21 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                         ? 'Sem descrição'
                         : workout.description,
                   ),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _createOrEditWorkoutDialog(workout: workout);
+                      }
+
+                      if (value == 'delete') {
+                        _deleteWorkout(workout);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Editar')),
+                      PopupMenuItem(value: 'delete', child: Text('Excluir')),
+                    ],
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(

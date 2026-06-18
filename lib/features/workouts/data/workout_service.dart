@@ -29,12 +29,18 @@ class WorkoutService {
 
   Stream<List<Workout>> watchWorkouts() {
     return _workoutsCollection
-        .orderBy('createdAt', descending: true)
+        .orderBy('createdAt', descending: false)
         .snapshots()
         .map(
           (snapshot) =>
               snapshot.docs.map((doc) => Workout.fromFirestore(doc)).toList(),
         );
+  }
+
+  Future<List<Workout>> getWorkoutsOnce() async {
+    final snapshot = await _workoutsCollection.orderBy('createdAt').get();
+
+    return snapshot.docs.map((doc) => Workout.fromFirestore(doc)).toList();
   }
 
   Future<void> createWorkout({
@@ -49,6 +55,35 @@ class WorkoutService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> updateWorkout({
+    required String workoutId,
+    required String name,
+    required String description,
+  }) async {
+    await _workoutsCollection.doc(workoutId).update({
+      'name': name.trim(),
+      'description': description.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteWorkout({required String workoutId}) async {
+    final exercisesSnapshot = await _workoutsCollection
+        .doc(workoutId)
+        .collection('exercises')
+        .get();
+
+    final batch = _firestore.batch();
+
+    for (final doc in exercisesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    batch.delete(_workoutsCollection.doc(workoutId));
+
+    await batch.commit();
   }
 
   Stream<List<WorkoutExercise>> watchWorkoutExercises({
@@ -88,6 +123,41 @@ class WorkoutService {
       'currentWeight': currentWeight,
       'notes': notes,
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> updateWorkoutExercise({
+    required String workoutId,
+    required String workoutExerciseId,
+    required int sets,
+    required String targetReps,
+    required int restSeconds,
+    required double currentWeight,
+    required String notes,
+  }) async {
+    await _workoutsCollection
+        .doc(workoutId)
+        .collection('exercises')
+        .doc(workoutExerciseId)
+        .update({
+          'sets': sets,
+          'targetReps': targetReps.trim(),
+          'restSeconds': restSeconds,
+          'currentWeight': currentWeight,
+          'notes': notes.trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
+  Future<void> deleteWorkoutExercise({
+    required String workoutId,
+    required String workoutExerciseId,
+  }) async {
+    await _workoutsCollection
+        .doc(workoutId)
+        .collection('exercises')
+        .doc(workoutExerciseId)
+        .delete();
   }
 }
