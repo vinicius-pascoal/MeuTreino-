@@ -5,6 +5,7 @@ import '../../auth/data/auth_service.dart';
 import '../../exercises/presentation/exercise_library_page.dart';
 import '../../history/presentation/history_page.dart';
 import '../../progress/presentation/progress_page.dart';
+import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../../workout_plan/data/workout_plan_service.dart';
 import '../../workout_plan/models/workout_plan.dart';
 import '../../workout_plan/presentation/workout_plan_page.dart';
@@ -60,6 +61,48 @@ class _HomePageState extends State<HomePage> {
     return DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
   }
 
+  void _goToAutoWorkoutPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AutoWorkoutPage()));
+  }
+
+  void _goToWorkoutsPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const WorkoutsPage()));
+  }
+
+  void _goToWorkoutPlanPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const WorkoutPlanPage()));
+  }
+
+  void _goToExerciseLibraryPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ExerciseLibraryPage()));
+  }
+
+  void _goToHistoryPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const HistoryPage()));
+  }
+
+  void _goToProgressPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProgressPage()));
+  }
+
+  void _startWorkout(Workout workout) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => WorkoutSessionPage(workout: workout)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Workout>>(
@@ -71,6 +114,7 @@ class _HomePageState extends State<HomePage> {
           stream: _planService.watchPlan(),
           builder: (context, planSnapshot) {
             final plan = planSnapshot.data;
+
             final currentWorkout = _findCurrentWorkout(
               plan: plan,
               workouts: workouts,
@@ -94,6 +138,7 @@ class _HomePageState extends State<HomePage> {
                     title: const Text('MeuTreino+'),
                     actions: [
                       IconButton(
+                        tooltip: 'Sair',
                         onPressed: _logout,
                         icon: const Icon(Icons.logout),
                       ),
@@ -111,29 +156,18 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         const SizedBox(height: 16),
+
                         _TodayWorkoutCard(
                           workout: currentWorkout,
                           trainedToday: trainedToday,
-                          onConfigure: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const WorkoutPlanPage(),
-                              ),
-                            );
-                          },
+                          onConfigure: _goToWorkoutPlanPage,
                           onStart: currentWorkout == null
                               ? null
-                              : () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => WorkoutSessionPage(
-                                        workout: currentWorkout,
-                                      ),
-                                    ),
-                                  );
-                                },
+                              : () => _startWorkout(currentWorkout),
                         ),
+
                         const SizedBox(height: 16),
+
                         AttendanceCalendar(
                           focusedDay: _focusedDay,
                           sessions: sessions,
@@ -144,7 +178,9 @@ class _HomePageState extends State<HomePage> {
                             });
                           },
                         ),
+
                         const SizedBox(height: 8),
+
                         const Row(
                           children: [
                             _LegendDot(color: Color(0xFF22C55E), label: 'Foi'),
@@ -155,71 +191,61 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 20),
+
+                        _HomeCard(
+                          title: 'Montar treino automático',
+                          subtitle:
+                              'Escolha grupos musculares e deixe o app criar o treino.',
+                          icon: Icons.auto_awesome,
+                          onTap: _goToAutoWorkoutPage,
+                        ),
+
+                        const SizedBox(height: 12),
+
                         _HomeCard(
                           title: 'Meus treinos',
                           subtitle: 'Crie, edite e organize seus treinos.',
                           icon: Icons.calendar_month,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const WorkoutsPage(),
-                              ),
-                            );
-                          },
+                          onTap: _goToWorkoutsPage,
                         ),
+
                         const SizedBox(height: 12),
+
                         _HomeCard(
                           title: 'Configurar sequência ABC',
                           subtitle:
                               'Escolha a ordem dos treinos e dias esperados.',
                           icon: Icons.route,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const WorkoutPlanPage(),
-                              ),
-                            );
-                          },
+                          onTap: _goToWorkoutPlanPage,
                         ),
+
                         const SizedBox(height: 12),
+
                         _HomeCard(
                           title: 'Biblioteca de exercícios',
                           subtitle: 'Veja exercícios com fotos locais.',
                           icon: Icons.photo_library,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ExerciseLibraryPage(),
-                              ),
-                            );
-                          },
+                          onTap: _goToExerciseLibraryPage,
                         ),
+
                         const SizedBox(height: 12),
+
                         _HomeCard(
                           title: 'Histórico',
                           subtitle: 'Veja treinos realizados e séries salvas.',
                           icon: Icons.history,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const HistoryPage(),
-                              ),
-                            );
-                          },
+                          onTap: _goToHistoryPage,
                         ),
+
                         const SizedBox(height: 12),
+
                         _HomeCard(
                           title: 'Progresso',
                           subtitle: 'Volume, frequência e evolução.',
                           icon: Icons.show_chart,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ProgressPage(),
-                              ),
-                            );
-                          },
+                          onTap: _goToProgressPage,
                         ),
                       ],
                     ),
@@ -267,7 +293,12 @@ class _TodayWorkoutCard extends StatelessWidget {
                 'Nenhuma sequência configurada',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              const Text(
+                'Configure uma sequência, como Treino A → Treino B → Treino C.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 14),
               FilledButton.icon(
                 onPressed: onConfigure,
                 icon: const Icon(Icons.route),
@@ -296,16 +327,27 @@ class _TodayWorkoutCard extends StatelessWidget {
             ),
             if (currentWorkout.description.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(currentWorkout.description),
+              Text(
+                currentWorkout.description,
+                style: const TextStyle(color: Colors.white70),
+              ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             if (trainedToday)
-              const Text(
-                'Você já treinou hoje.',
-                style: TextStyle(
-                  color: Color(0xFF22C55E),
-                  fontWeight: FontWeight.w700,
-                ),
+              const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Color(0xFF22C55E)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Você já treinou hoje.',
+                      style: TextStyle(
+                        color: Color(0xFF22C55E),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               )
             else
               SizedBox(

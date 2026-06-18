@@ -57,6 +57,22 @@ class WorkoutService {
     });
   }
 
+  Future<String> createWorkoutReturningId({
+    required String name,
+    required String description,
+    required List<String> weekDays,
+  }) async {
+    final docRef = await _workoutsCollection.add({
+      'name': name.trim(),
+      'description': description.trim(),
+      'weekDays': weekDays,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    return docRef.id;
+  }
+
   Future<void> updateWorkout({
     required String workoutId,
     required String name,
@@ -125,6 +141,43 @@ class WorkoutService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> addExercisesToWorkoutBatch({
+    required String workoutId,
+    required List<Exercise> exercises,
+    required int sets,
+    required String targetReps,
+    required int restSeconds,
+    required double currentWeight,
+  }) async {
+    final batch = _firestore.batch();
+
+    for (int index = 0; index < exercises.length; index++) {
+      final exercise = exercises[index];
+
+      final docRef = _workoutsCollection
+          .doc(workoutId)
+          .collection('exercises')
+          .doc();
+
+      batch.set(docRef, {
+        'exerciseLibraryId': exercise.id,
+        'name': exercise.name,
+        'muscleGroup': exercise.muscleGroup,
+        'imageAsset': exercise.imageAsset,
+        'order': index + 1,
+        'sets': sets,
+        'targetReps': targetReps,
+        'restSeconds': restSeconds,
+        'currentWeight': currentWeight,
+        'notes': '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
   }
 
   Future<void> updateWorkoutExercise({

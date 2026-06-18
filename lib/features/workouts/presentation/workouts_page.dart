@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../data/workout_service.dart';
 import '../models/workout.dart';
 import 'workout_detail_page.dart';
@@ -113,10 +114,25 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
     }
   }
 
+  void _openAutoWorkoutPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AutoWorkoutPage()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Meus treinos')),
+      appBar: AppBar(
+        title: const Text('Meus treinos'),
+        actions: [
+          IconButton(
+            tooltip: 'Montar treino automático',
+            onPressed: _openAutoWorkoutPage,
+            icon: const Icon(Icons.auto_awesome),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createOrEditWorkoutDialog(),
         icon: const Icon(Icons.add),
@@ -136,7 +152,32 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
           final workouts = snapshot.data!;
 
           if (workouts.isEmpty) {
-            return const Center(child: Text('Nenhum treino cadastrado.'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.fitness_center,
+                      size: 56,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Nenhum treino cadastrado.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _openAutoWorkoutPage,
+                      icon: const Icon(Icons.auto_awesome),
+                      label: const Text('Montar treino automático'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return ListView.separated(
