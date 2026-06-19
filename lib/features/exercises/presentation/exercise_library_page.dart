@@ -113,7 +113,7 @@ class ExerciseLibraryPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            exercise.muscleGroup,
+                            _exerciseSubtitle(exercise),
                             style: const TextStyle(color: Colors.white70),
                           ),
                           if (exercise.instructions.isNotEmpty) ...[
@@ -135,5 +135,19 @@ class ExerciseLibraryPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _exerciseSubtitle(Exercise exercise) {
+    final parts = <String>[exercise.muscleGroup];
+
+    if (exercise.muscleRegion.trim().isNotEmpty) {
+      parts.add(exercise.muscleRegion.trim());
+    }
+
+    if (exercise.equipment.trim().isNotEmpty) {
+      parts.add(exercise.equipment.trim());
+    }
+
+    return parts.join(' • ');
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import '../../exercises/data/exercise_library_service.dart';
 import '../../exercises/models/exercise.dart';
 import '../../workouts/data/workout_service.dart';
@@ -59,7 +57,7 @@ class WorkoutAutomationService {
       );
     }
 
-    final selectedExercises = _selectExercisesByMuscleGroups(
+    final selectedExercises = _selectBalancedExercisesByMuscleGroups(
       allExercises: libraryExercises,
       muscleGroups: muscleGroups,
       exercisesPerGroup: exercisesPerGroup,
@@ -89,28 +87,185 @@ class WorkoutAutomationService {
     return workoutId;
   }
 
-  List<Exercise> _selectExercisesByMuscleGroups({
+  List<Exercise> _selectBalancedExercisesByMuscleGroups({
     required List<Exercise> allExercises,
     required List<String> muscleGroups,
     required int exercisesPerGroup,
   }) {
-    final random = Random();
     final selected = <Exercise>[];
+    final normalizedGroupOrder = <String, int>{};
+
+    for (int index = 0; index < muscleGroups.length; index++) {
+      normalizedGroupOrder[_normalize(muscleGroups[index])] = index;
+    }
 
     for (final group in muscleGroups) {
       final groupExercises = allExercises
           .where(
-            (exercise) =>
-                exercise.muscleGroup.trim().toLowerCase() ==
-                group.trim().toLowerCase(),
+            (exercise) => _normalize(exercise.muscleGroup) == _normalize(group),
           )
+          .toList()
+        ..sort(_baseExerciseCompare);
+
+      if (groupExercises.isEmpty) {
+        continue;
+      }
+
+      selected.addAll(
+        _pickExercisesForGroup(
+          groupExercises: groupExercises,
+          exercisesPerGroup: exercisesPerGroup,
+        ),
+      );
+    }
+
+    selected.sort((a, b) {
+      final aAbdomen = _isAbdomen(a);
+      final bAbdomen = _isAbdomen(b);
+
+      if (aAbdomen != bAbdomen) {
+        return aAbdomen ? 1 : -1;
+      }
+
+      final groupCompare =
+          (normalizedGroupOrder[_normalize(a.muscleGroup)] ?? 999)
+              .compareTo(normalizedGroupOrder[_normalize(b.muscleGroup)] ?? 999);
+      if (groupCompare != 0) {
+        return groupCompare;
+      }
+
+      final compoundCompare = _compoundPriority(a).compareTo(
+        _compoundPriority(b),
+      );
+      if (compoundCompare != 0) {
+        return compoundCompare;
+      }
+
+      final priorityCompare = a.priority.compareTo(b.priority);
+      if (priorityCompare != 0) {
+        return priorityCompare;
+      }
+
+      return a.name.compareTo(b.name);
+    });
+
+    return selected;
+  }
+
+  List<Exercise> _pickExercisesForGroup({
+    required List<Exercise> groupExercises,
+    required int exercisesPerGroup,
+  }) {
+    final selected = <Exercise>[];
+    final usedIds = <String>{};
+    final regionCounts = <String, int>{};
+    final movementCounts = <String, int>{};
+    final equipmentCounts = <String, int>{};
+
+    while (selected.length < exercisesPerGroup) {
+      final remaining = groupExercises
+          .where((exercise) => !usedIds.contains(exercise.id))
           .toList();
 
-      groupExercises.shuffle(random);
+      if (remaining.isEmpty) {
+        break;
+      }
 
-      selected.addAll(groupExercises.take(exercisesPerGroup));
+      remaining.sort(
+        (a, b) => _selectionScore(
+          exercise: a,
+          regionCounts: regionCounts,
+          movementCounts: movementCounts,
+          equipmentCounts: equipmentCounts,
+        ).compareTo(
+          _selectionScore(
+            exercise: b,
+            regionCounts: regionCounts,
+            movementCounts: movementCounts,
+            equipmentCounts: equipmentCounts,
+          ),
+        ),
+      );
+
+      final next = remaining.first;
+      selected.add(next);
+      usedIds.add(next.id);
+      _increment(regionCounts, next.muscleRegion);
+      _increment(movementCounts, next.movementPattern);
+      _increment(equipmentCounts, next.equipment);
     }
 
     return selected;
+  }
+
+  int _selectionScore({
+    required Exercise exercise,
+    required Map<String, int> regionCounts,
+    required Map<String, int> movementCounts,
+    required Map<String, int> equipmentCounts,
+  }) {
+    final regionCount = _countFor(regionCounts, exercise.muscleRegion);
+    final movementCount = _countFor(movementCounts, exercise.movementPattern);
+    final equipmentCount = _countFor(equipmentCounts, exercise.equipment);
+
+    return (exercise.isCompound ? 0 : 1000) +
+        (exercise.priority * 100) +
+        (regionCount * 40) +
+        (movementCount * 20) +
+        (equipmentCount * 8) +
+        _baseExerciseTieBreaker(exercise);
+  }
+
+  int _baseExerciseCompare(Exercise a, Exercise b) {
+    final compoundCompare = _compoundPriority(a).compareTo(
+      _compoundPriority(b),
+    );
+    if (compoundCompare != 0) {
+      return compoundCompare;
+    }
+
+    final priorityCompare = a.priority.compareTo(b.priority);
+    if (priorityCompare != 0) {
+      return priorityCompare;
+    }
+
+    final regionCompare = a.muscleRegion.compareTo(b.muscleRegion);
+    if (regionCompare != 0) {
+      return regionCompare;
+    }
+
+    return a.name.compareTo(b.name);
+  }
+
+  int _baseExerciseTieBreaker(Exercise exercise) {
+    return exercise.name.codeUnits.fold(0, (sum, char) => sum + char);
+  }
+
+  int _compoundPriority(Exercise exercise) => exercise.isCompound ? 0 : 1;
+
+  bool _isAbdomen(Exercise exercise) {
+    return _normalize(exercise.muscleGroup) == _normalize('Abdômen');
+  }
+
+  int _countFor(Map<String, int> counts, String value) {
+    final key = _normalize(value);
+    if (key.isEmpty) {
+      return 0;
+    }
+
+    return counts[key] ?? 0;
+  }
+
+  void _increment(Map<String, int> counts, String value) {
+    final key = _normalize(value);
+    if (key.isEmpty) {
+      return;
+    }
+
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  String _normalize(String value) {
+    return value.trim().toLowerCase();
   }
 }

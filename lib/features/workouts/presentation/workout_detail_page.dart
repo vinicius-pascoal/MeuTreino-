@@ -261,7 +261,12 @@ class WorkoutDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '${exercise.muscleGroup} • ${exercise.sets} séries • ${exercise.targetReps} reps • ${exercise.restSeconds}s descanso',
+                            _exerciseSubtitle(exercise),
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${exercise.sets} séries • ${exercise.targetReps} reps • ${exercise.restSeconds}s descanso',
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -282,5 +287,19 @@ class WorkoutDetailPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _exerciseSubtitle(WorkoutExercise exercise) {
+    final parts = <String>[exercise.muscleGroup];
+
+    if (exercise.muscleRegion.trim().isNotEmpty) {
+      parts.add(exercise.muscleRegion.trim());
+    }
+
+    if (exercise.equipment.trim().isNotEmpty) {
+      parts.add(exercise.equipment.trim());
+    }
+
+    return parts.join(' • ');
   }
 }

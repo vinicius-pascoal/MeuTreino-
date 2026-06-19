@@ -303,7 +303,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${exercise.muscleGroup} - Serie $currentSet de ${exercise.sets}',
+                  '${_exerciseSubtitle(exercise)} - Série $currentSet de ${exercise.sets}',
                   style: const TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 8),
@@ -464,7 +464,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        item.muscleGroup,
+                                        _exerciseSubtitle(item),
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: isSelected
@@ -563,5 +563,19 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
         );
       },
     );
+  }
+
+  String _exerciseSubtitle(WorkoutExercise exercise) {
+    final parts = <String>[exercise.muscleGroup];
+
+    if (exercise.muscleRegion.trim().isNotEmpty) {
+      parts.add(exercise.muscleRegion.trim());
+    }
+
+    if (exercise.equipment.trim().isNotEmpty) {
+      parts.add(exercise.equipment.trim());
+    }
+
+    return parts.join(' • ');
   }
 }
