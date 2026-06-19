@@ -17,7 +17,7 @@ class WorkoutAutomationService {
     required String name,
     required String description,
     required List<String> muscleGroups,
-    required int exercisesPerGroup,
+    required Map<String, int> exercisesPerGroup,
     required int sets,
     required String targetReps,
     required int restSeconds,
@@ -31,10 +31,13 @@ class WorkoutAutomationService {
       throw Exception('Selecione pelo menos um grupo muscular.');
     }
 
-    if (exercisesPerGroup <= 0) {
-      throw Exception(
-        'A quantidade de exercícios por grupo deve ser maior que zero.',
-      );
+    for (final group in muscleGroups) {
+      final quantity = exercisesPerGroup[group] ?? 0;
+      if (quantity <= 0) {
+        throw Exception(
+          'Defina uma quantidade válida de exercícios para $group.',
+        );
+      }
     }
 
     if (sets <= 0) {
@@ -90,7 +93,7 @@ class WorkoutAutomationService {
   List<Exercise> _selectBalancedExercisesByMuscleGroups({
     required List<Exercise> allExercises,
     required List<String> muscleGroups,
-    required int exercisesPerGroup,
+    required Map<String, int> exercisesPerGroup,
   }) {
     final selected = <Exercise>[];
     final normalizedGroupOrder = <String, int>{};
@@ -114,7 +117,7 @@ class WorkoutAutomationService {
       selected.addAll(
         _pickExercisesForGroup(
           groupExercises: groupExercises,
-          exercisesPerGroup: exercisesPerGroup,
+          exercisesPerGroup: exercisesPerGroup[group] ?? 0,
         ),
       );
     }

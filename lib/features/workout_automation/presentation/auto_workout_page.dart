@@ -28,8 +28,8 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
   ];
 
   final List<String> _selectedGroups = [];
+  final Map<String, int> _exercisesPerGroup = {};
 
-  int _exercisesPerGroup = 2;
   int _sets = 3;
   int _restSeconds = 90;
   bool _loading = false;
@@ -47,9 +47,17 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
     setState(() {
       if (_selectedGroups.contains(group)) {
         _selectedGroups.remove(group);
+        _exercisesPerGroup.remove(group);
       } else {
         _selectedGroups.add(group);
+        _exercisesPerGroup[group] = _exercisesPerGroup[group] ?? 2;
       }
+    });
+  }
+
+  void _updateGroupExerciseCount(String group, int value) {
+    setState(() {
+      _exercisesPerGroup[group] = value;
     });
   }
 
@@ -61,7 +69,9 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
         name: _nameController.text,
         description: _descriptionController.text,
         muscleGroups: _selectedGroups,
-        exercisesPerGroup: _exercisesPerGroup,
+        exercisesPerGroup: {
+          for (final group in _selectedGroups) group: _exercisesPerGroup[group] ?? 2,
+        },
         sets: _sets,
         targetReps: _repsController.text.trim(),
         restSeconds: _restSeconds,
@@ -118,7 +128,10 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
   }
 
   int get _estimatedExerciseCount {
-    return _selectedGroups.length * _exercisesPerGroup;
+    return _selectedGroups.fold<int>(
+      0,
+      (sum, group) => sum + (_exercisesPerGroup[group] ?? 0),
+    );
   }
 
   @override
@@ -148,7 +161,7 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'O app vai buscar exercícios da biblioteca e montar um treino automaticamente.',
+              'O app vai buscar exercícios da biblioteca e montar um treino equilibrado para cada grupo selecionado.',
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 16),
@@ -179,7 +192,7 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
               controller: _nameController,
               decoration: const InputDecoration(
                 labelText: 'Nome do treino',
-                hintText: 'Ex: Treino Peito, Bíceps e Ombro',
+                hintText: 'Ex: Treino Costas e Bíceps',
               ),
             ),
             const SizedBox(height: 14),
@@ -192,22 +205,38 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
             ),
             const SizedBox(height: 24),
             const Text(
+              'Quantidade por grupo',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 14),
+            if (_selectedGroups.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Selecione um ou mais grupos para definir quantos exercícios cada um terá.',
+                  ),
+                ),
+              )
+            else
+              ..._selectedGroups.map(
+                (group) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _NumberSelector(
+                    title: group,
+                    value: _exercisesPerGroup[group] ?? 2,
+                    min: 1,
+                    max: 8,
+                    onChanged: (value) => _updateGroupExerciseCount(group, value),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            const Text(
               'Configuração dos exercícios',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 14),
-            _NumberSelector(
-              title: 'Exercícios por grupo',
-              value: _exercisesPerGroup,
-              min: 1,
-              max: 5,
-              onChanged: (value) {
-                setState(() {
-                  _exercisesPerGroup = value;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
             _NumberSelector(
               title: 'Séries por exercício',
               value: _sets,
