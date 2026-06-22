@@ -50,7 +50,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await AppHomeWidgetService().clearTodayWorkoutWidget();
+    await AppHomeWidgetService().clearWidgets();
     await _auth.signOut();
   }
 }

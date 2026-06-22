@@ -8,6 +8,51 @@ import '../../workout_session/data/workout_session_service.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
 
+const _defaultWorkoutName = 'Nenhum treino configurado';
+const _defaultWorkoutDescription =
+    'Abra o app para configurar sua sequencia ABC';
+const _defaultWorkoutEmptyDescription =
+    'Abra o app para ver os detalhes do treino de hoje';
+
+class AppHomeWidgetState {
+  final String workoutName;
+  final String workoutDescription;
+  final bool trainedToday;
+  final String? currentWorkoutId;
+  final int weeklyDone;
+  final int weeklyExpected;
+
+  const AppHomeWidgetState({
+    required this.workoutName,
+    required this.workoutDescription,
+    required this.trainedToday,
+    required this.currentWorkoutId,
+    required this.weeklyDone,
+    required this.weeklyExpected,
+  });
+
+  const AppHomeWidgetState.empty()
+    : workoutName = _defaultWorkoutName,
+      workoutDescription = _defaultWorkoutDescription,
+      trainedToday = false,
+      currentWorkoutId = '',
+      weeklyDone = 0,
+      weeklyExpected = 0;
+
+  String get weeklyStatusText => '$weeklyDone/$weeklyExpected treinos na semana';
+
+  String get fingerprint {
+    return [
+      workoutName,
+      workoutDescription,
+      trainedToday.toString(),
+      currentWorkoutId ?? '',
+      weeklyDone.toString(),
+      weeklyExpected.toString(),
+    ].join('|');
+  }
+}
+
 class AppHomeWidgetService {
   AppHomeWidgetService({
     WorkoutService? workoutService,
@@ -24,7 +69,7 @@ class AppHomeWidgetService {
   final WorkoutPlanService _workoutPlanService;
   final WorkoutSessionService _workoutSessionService;
 
-  bool get _isSupportedPlatform {
+  bool get isSupportedPlatform {
     if (kIsWeb) return false;
 
     return defaultTargetPlatform == TargetPlatform.android ||
@@ -37,94 +82,100 @@ class AppHomeWidgetService {
     required bool trainedToday,
     String? currentWorkoutId,
   }) async {
-    if (!_isSupportedPlatform) return;
+    if (!isSupportedPlatform) return;
 
-    await HomeWidget.saveWidgetData<String>(
-      'today_workout_name',
-      workoutName,
+    await _saveTodayWorkoutData(
+      workoutName: workoutName,
+      workoutDescription: workoutDescription,
+      trainedToday: trainedToday,
+      currentWorkoutId: currentWorkoutId,
     );
-    await HomeWidget.saveWidgetData<String>(
-      'today_workout_description',
-      workoutDescription,
-    );
-    await HomeWidget.saveWidgetData<bool>('trained_today', trainedToday);
-    await HomeWidget.saveWidgetData<String>(
-      'current_workout_id',
-      currentWorkoutId ?? '',
-    );
-
-    await HomeWidget.updateWidget(name: androidTodayWorkoutWidgetName);
+    await _refreshWidget();
   }
 
   Future<void> updateWeeklySummaryWidgetData({
     required int weeklyDone,
     required int weeklyExpected,
   }) async {
-    if (!_isSupportedPlatform) return;
+    if (!isSupportedPlatform) return;
 
-    await HomeWidget.saveWidgetData<int>('weekly_done', weeklyDone);
-    await HomeWidget.saveWidgetData<int>('weekly_expected', weeklyExpected);
-    await HomeWidget.saveWidgetData<String>(
-      'weekly_status_text',
-      '$weeklyDone/$weeklyExpected treinos na semana',
+    await _saveWeeklySummaryData(
+      weeklyDone: weeklyDone,
+      weeklyExpected: weeklyExpected,
     );
+    await _refreshWidget();
   }
 
   Future<void> clearTodayWorkoutWidget() async {
-    if (!_isSupportedPlatform) return;
+    await clearWidgets();
+  }
 
-    await updateTodayWorkoutWidget(
-      workoutName: 'Nenhum treino configurado',
-      workoutDescription: 'Abra o app para configurar sua sequencia ABC',
-      trainedToday: false,
-      currentWorkoutId: '',
-    );
-    await updateWeeklySummaryWidgetData(weeklyDone: 0, weeklyExpected: 0);
+  Future<void> clearWidgets() async {
+    await syncWidgetState(const AppHomeWidgetState.empty());
+  }
+
+  Future<void> syncWidgetState(AppHomeWidgetState state) async {
+    if (!isSupportedPlatform) return;
+
+    await Future.wait([
+      _saveTodayWorkoutData(
+        workoutName: state.workoutName,
+        workoutDescription: state.workoutDescription,
+        trainedToday: state.trainedToday,
+        currentWorkoutId: state.currentWorkoutId,
+      ),
+      _saveWeeklySummaryData(
+        weeklyDone: state.weeklyDone,
+        weeklyExpected: state.weeklyExpected,
+      ),
+    ]);
+    await _refreshWidget();
   }
 
   Future<void> syncFromAppState() async {
-    if (!_isSupportedPlatform) return;
+    if (!isSupportedPlatform) return;
 
     try {
-      final workouts = await _workoutService.getWorkoutsOnce();
-      final plan = await _workoutPlanService.getPlanOnce();
-
-      final currentWorkout = _findCurrentWorkout(plan: plan, workouts: workouts);
-      final today = DateTime.now();
-      final todaySessions = await _workoutSessionService.getSessionsBetween(
-        start: today,
-        end: today,
-      );
-      final trainedToday = todaySessions.any(
-        (session) => session.workoutDateKey == DateKey.fromDate(today),
-      );
-
-      final weekStart = _startOfWeek(today);
-      final weekEnd = weekStart.add(const Duration(days: 6));
-      final weeklySessions = await _workoutSessionService.getSessionsBetween(
-        start: weekStart,
-        end: weekEnd,
-      );
-      final weeklyDone = weeklySessions
-          .map((session) => session.workoutDateKey)
-          .toSet()
-          .length;
-      final weeklyExpected = plan?.trainingWeekDays.length ?? 0;
-
-      await updateTodayWorkoutWidget(
-        workoutName: currentWorkout?.name ?? 'Nenhum treino configurado',
-        workoutDescription: _resolveWorkoutDescription(currentWorkout),
-        trainedToday: trainedToday,
-        currentWorkoutId: currentWorkout?.id,
-      );
-      await updateWeeklySummaryWidgetData(
-        weeklyDone: weeklyDone,
-        weeklyExpected: weeklyExpected,
-      );
+      final state = await buildStateFromAppState();
+      await syncWidgetState(state);
     } catch (error, stackTrace) {
       debugPrint('AppHomeWidgetService sync error: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
+  }
+
+  Future<AppHomeWidgetState> buildStateFromAppState() async {
+    final workouts = await _workoutService.getWorkoutsOnce();
+    final plan = await _workoutPlanService.getPlanOnce();
+
+    final currentWorkout = _findCurrentWorkout(plan: plan, workouts: workouts);
+    final today = DateTime.now();
+    final todaySessions = await _workoutSessionService.getSessionsBetween(
+      start: today,
+      end: today,
+    );
+    final trainedToday = todaySessions.isNotEmpty;
+
+    final weekStart = _startOfWeek(today);
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final weeklySessions = await _workoutSessionService.getSessionsBetween(
+      start: weekStart,
+      end: weekEnd,
+    );
+    final weeklyDone = weeklySessions
+        .map((session) => session.workoutDateKey)
+        .toSet()
+        .length;
+    final weeklyExpected = plan?.trainingWeekDays.length ?? 0;
+
+    return AppHomeWidgetState(
+      workoutName: currentWorkout?.name ?? _defaultWorkoutName,
+      workoutDescription: _resolveWorkoutDescription(currentWorkout),
+      trainedToday: trainedToday,
+      currentWorkoutId: currentWorkout?.id,
+      weeklyDone: weeklyDone,
+      weeklyExpected: weeklyExpected,
+    );
   }
 
   Workout? _findCurrentWorkout({
@@ -145,11 +196,11 @@ class AppHomeWidgetService {
 
   String _resolveWorkoutDescription(Workout? workout) {
     if (workout == null) {
-      return 'Abra o app para configurar sua sequencia ABC';
+      return _defaultWorkoutDescription;
     }
 
     if (workout.description.trim().isEmpty) {
-      return 'Abra o app para ver os detalhes do treino de hoje';
+      return _defaultWorkoutEmptyDescription;
     }
 
     return workout.description.trim();
@@ -158,5 +209,43 @@ class AppHomeWidgetService {
   DateTime _startOfWeek(DateTime date) {
     final normalized = DateKey.normalize(date);
     return normalized.subtract(Duration(days: normalized.weekday - 1));
+  }
+
+  Future<void> _saveTodayWorkoutData({
+    required String workoutName,
+    required String workoutDescription,
+    required bool trainedToday,
+    String? currentWorkoutId,
+  }) async {
+    await Future.wait([
+      HomeWidget.saveWidgetData<String>('today_workout_name', workoutName),
+      HomeWidget.saveWidgetData<String>(
+        'today_workout_description',
+        workoutDescription,
+      ),
+      HomeWidget.saveWidgetData<bool>('trained_today', trainedToday),
+      HomeWidget.saveWidgetData<String>(
+        'current_workout_id',
+        currentWorkoutId ?? '',
+      ),
+    ]);
+  }
+
+  Future<void> _saveWeeklySummaryData({
+    required int weeklyDone,
+    required int weeklyExpected,
+  }) async {
+    await Future.wait([
+      HomeWidget.saveWidgetData<int>('weekly_done', weeklyDone),
+      HomeWidget.saveWidgetData<int>('weekly_expected', weeklyExpected),
+      HomeWidget.saveWidgetData<String>(
+        'weekly_status_text',
+        '$weeklyDone/$weeklyExpected treinos na semana',
+      ),
+    ]);
+  }
+
+  Future<void> _refreshWidget() async {
+    await HomeWidget.updateWidget(name: androidTodayWorkoutWidgetName);
   }
 }
