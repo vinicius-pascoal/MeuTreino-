@@ -87,6 +87,23 @@ class WorkoutSessionService {
         );
   }
 
+  Future<List<WorkoutSessionSummary>> getSessionsBetween({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startKey = DateKey.fromDate(start);
+    final endKey = DateKey.fromDate(end);
+
+    final snapshot = await _sessionsCollection
+        .where('workoutDateKey', isGreaterThanOrEqualTo: startKey)
+        .where('workoutDateKey', isLessThanOrEqualTo: endKey)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => WorkoutSessionSummary.fromFirestore(doc))
+        .toList();
+  }
+
   Future<List<PerformedSet>> getSessionSets({required String sessionId}) async {
     final snapshot = await _sessionsCollection
         .doc(sessionId)

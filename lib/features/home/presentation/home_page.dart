@@ -4,6 +4,7 @@ import '../../../core/utils/date_key.dart';
 import '../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../auth/data/auth_service.dart';
 import '../../exercises/presentation/exercise_library_page.dart';
+import '../../home_widgets/data/app_home_widget_service.dart';
 import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../../workout_plan/data/workout_plan_service.dart';
 import '../../workout_plan/models/workout_plan.dart';
@@ -28,8 +29,10 @@ class _HomePageState extends State<HomePage> {
   final _workoutService = WorkoutService();
   final _planService = WorkoutPlanService();
   final _sessionService = WorkoutSessionService();
+  final _homeWidgetService = AppHomeWidgetService();
 
   DateTime _focusedDay = DateTime.now();
+  String? _lastWidgetPayload;
 
   Future<void> _logout() async {
     await _authService.logout();
@@ -85,6 +88,24 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _syncHomeWidget({
+    required Workout? currentWorkout,
+    required bool trainedToday,
+  }) {
+    final workoutName = currentWorkout?.name ?? 'Nenhum treino configurado';
+    final workoutDescription =
+        currentWorkout?.description.trim().isNotEmpty == true
+        ? currentWorkout!.description.trim()
+        : 'Abra o app para configurar sua sequencia ABC';
+    final payload =
+        '$workoutName|$workoutDescription|$trainedToday|${currentWorkout?.id ?? ''}';
+
+    if (_lastWidgetPayload == payload) return;
+
+    _lastWidgetPayload = payload;
+    _homeWidgetService.syncFromAppState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Workout>>(
@@ -111,6 +132,10 @@ class _HomePageState extends State<HomePage> {
                 final todayKey = DateKey.fromDate(DateTime.now());
                 final trainedToday = sessions.any(
                   (session) => session.workoutDateKey == todayKey,
+                );
+                _syncHomeWidget(
+                  currentWorkout: currentWorkout,
+                  trainedToday: trainedToday,
                 );
                 final expectedDays = _countExpectedDaysInMonth(plan);
                 final attendanceRate = expectedDays == 0

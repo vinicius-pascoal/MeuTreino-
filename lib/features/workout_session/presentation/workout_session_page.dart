@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/widgets/exercise_image.dart';
 import '../../../core/widgets/rest_timer.dart';
+import '../../home_widgets/data/app_home_widget_service.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
 import '../../workouts/models/workout_exercise.dart';
@@ -24,6 +25,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
 
   final _workoutService = WorkoutService();
   final _sessionService = WorkoutSessionService();
+  final _homeWidgetService = AppHomeWidgetService();
 
   final _weightController = TextEditingController();
   final _repsController = TextEditingController();
@@ -174,6 +176,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
         startedAt: _startedAt,
         completedSets: _completedSets,
       );
+      await _homeWidgetService.syncFromAppState();
 
       if (!mounted) return;
 

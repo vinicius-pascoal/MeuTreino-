@@ -36,6 +36,12 @@ class WorkoutPlanService {
     });
   }
 
+  Future<WorkoutPlan?> getPlanOnce() async {
+    final doc = await planRef.get();
+    if (!doc.exists) return null;
+    return WorkoutPlan.fromFirestore(doc);
+  }
+
   Future<void> savePlan({
     required List<String> sequenceWorkoutIds,
     required List<int> trainingWeekDays,

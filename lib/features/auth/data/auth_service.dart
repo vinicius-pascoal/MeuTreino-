@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../home_widgets/data/app_home_widget_service.dart';
+
 class AuthService {
   AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
     : _auth = auth ?? FirebaseAuth.instance,
@@ -48,6 +50,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await AppHomeWidgetService().clearTodayWorkoutWidget();
     await _auth.signOut();
   }
 }
