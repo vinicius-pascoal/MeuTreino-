@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../data/exercise_library_service.dart';
 import '../models/exercise.dart';
@@ -11,27 +12,26 @@ class ExerciseLibraryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = ExerciseLibraryService();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Biblioteca de Exercícios'),
-        actions: [
-          IconButton(
-            tooltip: 'Popular biblioteca',
-            onPressed: () async {
-              await service.seedDefaultExercises();
+    return AppPageScaffold(
+      title: 'Biblioteca de exercicios',
+      currentIndex: 4,
+      actions: [
+        IconButton(
+          tooltip: 'Popular biblioteca',
+          onPressed: () async {
+            await service.seedDefaultExercises();
 
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Biblioteca inicial criada/atualizada.'),
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.cloud_sync),
-          ),
-        ],
-      ),
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Biblioteca inicial criada/atualizada.'),
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.cloud_sync),
+        ),
+      ],
       body: StreamBuilder<List<Exercise>>(
         stream: service.watchExercises(),
         builder: (context, snapshot) {
@@ -59,7 +59,7 @@ class ExerciseLibraryPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Nenhum exercício cadastrado.',
+                      'Nenhum exercicio cadastrado.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -87,7 +87,7 @@ class ExerciseLibraryPage extends StatelessWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             itemCount: exercises.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, index) {

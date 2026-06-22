@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../../exercises/presentation/select_exercise_page.dart';
 import '../../workout_session/presentation/workout_session_page.dart';
@@ -38,13 +39,13 @@ class WorkoutDetailPage extends StatelessWidget {
               children: [
                 TextField(
                   controller: setsController,
-                  decoration: const InputDecoration(labelText: 'Séries'),
+                  decoration: const InputDecoration(labelText: 'Series'),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: repsController,
-                  decoration: const InputDecoration(labelText: 'Repetições'),
+                  decoration: const InputDecoration(labelText: 'Repeticoes'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -63,7 +64,7 @@ class WorkoutDetailPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextField(
                   controller: notesController,
-                  decoration: const InputDecoration(labelText: 'Observações'),
+                  decoration: const InputDecoration(labelText: 'Observacoes'),
                   minLines: 2,
                   maxLines: 4,
                 ),
@@ -120,7 +121,7 @@ class WorkoutDetailPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Excluir exercício'),
+          title: const Text('Excluir exercicio'),
           content: Text('Deseja excluir "${exercise.name}" deste treino?'),
           actions: [
             TextButton(
@@ -148,26 +149,25 @@ class WorkoutDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = WorkoutService();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(workout.name),
-        actions: [
-          IconButton(
-            tooltip: 'Adicionar exercício',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SelectExercisePage(
-                    workoutId: workout.id,
-                    nextOrder: DateTime.now().millisecondsSinceEpoch,
-                  ),
+    return AppPageScaffold(
+      title: workout.name,
+      currentIndex: 1,
+      actions: [
+        IconButton(
+          tooltip: 'Adicionar exercicio',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SelectExercisePage(
+                  workoutId: workout.id,
+                  nextOrder: DateTime.now().millisecondsSinceEpoch,
                 ),
-              );
-            },
-            icon: const Icon(Icons.add),
-          ),
-        ],
-      ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.add),
+        ),
+      ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.of(context).push(
@@ -195,14 +195,14 @@ class WorkoutDetailPage extends StatelessWidget {
           if (exercises.isEmpty) {
             return const Center(
               child: Text(
-                'Nenhum exercício neste treino.\nClique no + para adicionar.',
+                'Nenhum exercicio neste treino.\nClique no + para adicionar.',
                 textAlign: TextAlign.center,
               ),
             );
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             itemCount: exercises.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
@@ -266,11 +266,11 @@ class WorkoutDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${exercise.sets} séries • ${exercise.targetReps} reps • ${exercise.restSeconds}s descanso',
+                            '${exercise.sets} series • ${exercise.targetReps} reps • ${exercise.restSeconds}s descanso',
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Última carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
+                            'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
                             style: const TextStyle(
                               color: Color(0xFF22C55E),
                               fontWeight: FontWeight.w700,

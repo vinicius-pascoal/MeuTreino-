@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workout_session/data/workout_session_service.dart';
 import '../../workout_session/models/workout_session_summary.dart';
 import 'history_detail_page.dart';
@@ -12,8 +13,9 @@ class HistoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = WorkoutSessionService();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Histórico')),
+    return AppPageScaffold(
+      title: 'Historico',
+      currentIndex: 2,
       body: StreamBuilder<List<WorkoutSessionSummary>>(
         stream: service.watchRecentSessions(limit: 80),
         builder: (context, snapshot) {
@@ -32,7 +34,7 @@ class HistoryPage extends StatelessWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             itemCount: sessions.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -49,7 +51,7 @@ class HistoryPage extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   subtitle: Text(
-                    '$date\n${session.totalSets} séries • ${session.totalVolume.toStringAsFixed(0)} kg de volume',
+                    '$date\n${session.totalSets} series • ${session.totalVolume.toStringAsFixed(0)} kg de volume',
                   ),
                   isThreeLine: true,
                   trailing: const Icon(Icons.chevron_right),

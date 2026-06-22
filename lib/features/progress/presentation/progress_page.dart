@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workout_session/data/workout_session_service.dart';
 import '../../workout_session/models/workout_session_summary.dart';
 
@@ -10,8 +11,9 @@ class ProgressPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = WorkoutSessionService();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Progresso')),
+    return AppPageScaffold(
+      title: 'Progresso',
+      currentIndex: 3,
       body: StreamBuilder<List<WorkoutSessionSummary>>(
         stream: service.watchRecentSessions(limit: 100),
         builder: (context, snapshot) {
@@ -36,7 +38,7 @@ class ProgressPage extends StatelessWidget {
               : totalVolume / totalWorkouts;
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             children: [
               _ProgressCard(
                 title: 'Treinos realizados',
@@ -51,34 +53,32 @@ class ProgressPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _ProgressCard(
-                title: 'Séries realizadas',
+                title: 'Series realizadas',
                 value: '$totalSets',
                 icon: Icons.format_list_numbered,
               ),
               const SizedBox(height: 12),
               _ProgressCard(
-                title: 'Volume médio por treino',
+                title: 'Volume medio por treino',
                 value: '${averageVolume.toStringAsFixed(0)} kg',
                 icon: Icons.show_chart,
               ),
               const SizedBox(height: 20),
               const Text(
-                'Últimos treinos',
+                'Ultimos treinos',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
-              ...sessions
-                  .take(10)
-                  .map(
-                    (session) => Card(
-                      child: ListTile(
-                        title: Text(session.workoutName),
-                        subtitle: Text(
-                          '${session.totalSets} séries • ${session.totalVolume.toStringAsFixed(0)} kg',
-                        ),
-                      ),
+              ...sessions.take(10).map(
+                (session) => Card(
+                  child: ListTile(
+                    title: Text(session.workoutName),
+                    subtitle: Text(
+                      '${session.totalSets} series • ${session.totalVolume.toStringAsFixed(0)} kg',
                     ),
                   ),
+                ),
+              ),
             ],
           );
         },

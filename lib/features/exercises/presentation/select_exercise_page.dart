@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../../workouts/data/workout_service.dart';
 import '../data/exercise_library_service.dart';
@@ -15,10 +16,7 @@ class SelectExercisePage extends StatelessWidget {
     required this.nextOrder,
   });
 
-  Future<void> _showConfigDialog(
-    BuildContext context,
-    Exercise exercise,
-  ) async {
+  Future<void> _showConfigDialog(BuildContext context, Exercise exercise) async {
     final setsController = TextEditingController(text: '3');
     final repsController = TextEditingController(text: '8-10');
     final restController = TextEditingController(text: '90');
@@ -36,14 +34,14 @@ class SelectExercisePage extends StatelessWidget {
               children: [
                 TextField(
                   controller: setsController,
-                  decoration: const InputDecoration(labelText: 'Séries'),
+                  decoration: const InputDecoration(labelText: 'Series'),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: repsController,
                   decoration: const InputDecoration(
-                    labelText: 'Repetições',
+                    labelText: 'Repeticoes',
                     hintText: 'Ex: 8-10',
                   ),
                 ),
@@ -111,8 +109,9 @@ class SelectExercisePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = ExerciseLibraryService();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Adicionar exercício')),
+    return AppPageScaffold(
+      title: 'Adicionar exercicio',
+      currentIndex: 1,
       body: StreamBuilder<List<Exercise>>(
         stream: service.watchExercises(),
         builder: (context, snapshot) {
@@ -129,14 +128,14 @@ class SelectExercisePage extends StatelessWidget {
           if (exercises.isEmpty) {
             return const Center(
               child: Text(
-                'A biblioteca está vazia.\nVolte para a biblioteca e clique em popular biblioteca.',
+                'A biblioteca esta vazia.\nVolte para a biblioteca e clique em popular biblioteca.',
                 textAlign: TextAlign.center,
               ),
             );
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             itemCount: exercises.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -149,10 +148,7 @@ class SelectExercisePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ExerciseImage(
-                        imageAsset: exercise.imageAsset,
-                        height: 150,
-                      ),
+                      ExerciseImage(imageAsset: exercise.imageAsset, height: 150),
                       Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../data/workout_automation_service.dart';
 
 class AutoWorkoutPage extends StatefulWidget {
@@ -21,10 +22,10 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
     'Peito',
     'Costas',
     'Ombro',
-    'Bíceps',
-    'Tríceps',
+    'Biceps',
+    'Triceps',
     'Pernas',
-    'Abdômen',
+    'Abdomen',
   ];
 
   final List<String> _selectedGroups = [];
@@ -85,7 +86,7 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Treino automático criado com sucesso.')),
+        const SnackBar(content: Text('Treino automatico criado com sucesso.')),
       );
 
       Navigator.of(context).pop();
@@ -136,162 +137,158 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Montar treino automático')),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.all(16),
-        child: SizedBox(
-          height: 52,
-          child: FilledButton.icon(
-            onPressed: _loading ? null : _generateWorkout,
-            icon: const Icon(Icons.auto_awesome),
-            label: _loading
-                ? const Text('Gerando treino...')
-                : const Text('Gerar treino'),
-          ),
+    return AppPageScaffold(
+      title: 'Montar treino automatico',
+      currentIndex: 4,
+      bottomAction: SizedBox(
+        height: 52,
+        child: FilledButton.icon(
+          onPressed: _loading ? null : _generateWorkout,
+          icon: const Icon(Icons.auto_awesome),
+          label: _loading
+              ? const Text('Gerando treino...')
+              : const Text('Gerar treino'),
         ),
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text(
-              'Escolha os grupos musculares',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'O app vai buscar exercícios da biblioteca e montar um treino equilibrado para cada grupo selecionado.',
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _availableGroups.map((group) {
-                final selected = _selectedGroups.contains(group);
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+        children: [
+          const Text(
+            'Escolha os grupos musculares',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'O app busca exercicios da biblioteca e monta um treino equilibrado para cada grupo selecionado.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _availableGroups.map((group) {
+              final selected = _selectedGroups.contains(group);
 
-                return FilterChip(
-                  label: Text(group),
-                  selected: selected,
-                  onSelected: (_) => _toggleGroup(group),
-                );
-              }).toList(),
+              return FilterChip(
+                label: Text(group),
+                selected: selected,
+                onSelected: (_) => _toggleGroup(group),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _useSuggestedName,
+              icon: const Icon(Icons.lightbulb),
+              label: const Text('Usar nome sugerido'),
             ),
-            const SizedBox(height: 18),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: _useSuggestedName,
-                icon: const Icon(Icons.lightbulb),
-                label: const Text('Usar nome sugerido'),
-              ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Nome do treino',
+              hintText: 'Ex: Treino Costas e Biceps',
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nome do treino',
-                hintText: 'Ex: Treino Costas e Bíceps',
-              ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _descriptionController,
+            decoration: const InputDecoration(
+              labelText: 'Descricao',
+              hintText: 'Ex: Treino gerado automaticamente',
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Descrição',
-                hintText: 'Ex: Treino gerado automaticamente',
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Quantidade por grupo',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 14),
-            if (_selectedGroups.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Selecione um ou mais grupos para definir quantos exercícios cada um terá.',
-                  ),
-                ),
-              )
-            else
-              ..._selectedGroups.map(
-                (group) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _NumberSelector(
-                    title: group,
-                    value: _exercisesPerGroup[group] ?? 2,
-                    min: 1,
-                    max: 8,
-                    onChanged: (value) => _updateGroupExerciseCount(group, value),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 12),
-            const Text(
-              'Configuração dos exercícios',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 14),
-            _NumberSelector(
-              title: 'Séries por exercício',
-              value: _sets,
-              min: 1,
-              max: 6,
-              onChanged: (value) {
-                setState(() {
-                  _sets = value;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            _NumberSelector(
-              title: 'Descanso em segundos',
-              value: _restSeconds,
-              min: 30,
-              max: 180,
-              step: 15,
-              onChanged: (value) {
-                setState(() {
-                  _restSeconds = value;
-                });
-              },
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _repsController,
-              decoration: const InputDecoration(
-                labelText: 'Repetições',
-                hintText: 'Ex: 8-10',
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _weightController,
-              decoration: const InputDecoration(
-                labelText: 'Carga inicial',
-                suffixText: 'kg',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 24),
-            Card(
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Quantidade por grupo',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          if (_selectedGroups.isEmpty)
+            const Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Text(
-                  _selectedGroups.isEmpty
-                      ? 'Selecione os grupos musculares para visualizar a previsão.'
-                      : 'Previsão: até $_estimatedExerciseCount exercícios no treino.',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  'Selecione um ou mais grupos para definir quantos exercicios cada um tera.',
+                ),
+              ),
+            )
+          else
+            ..._selectedGroups.map(
+              (group) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _NumberSelector(
+                  title: group,
+                  value: _exercisesPerGroup[group] ?? 2,
+                  min: 1,
+                  max: 8,
+                  onChanged: (value) => _updateGroupExerciseCount(group, value),
                 ),
               ),
             ),
-          ],
-        ),
+          const SizedBox(height: 12),
+          const Text(
+            'Configuracao dos exercicios',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          _NumberSelector(
+            title: 'Series por exercicio',
+            value: _sets,
+            min: 1,
+            max: 6,
+            onChanged: (value) {
+              setState(() {
+                _sets = value;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          _NumberSelector(
+            title: 'Descanso em segundos',
+            value: _restSeconds,
+            min: 30,
+            max: 180,
+            step: 15,
+            onChanged: (value) {
+              setState(() {
+                _restSeconds = value;
+              });
+            },
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _repsController,
+            decoration: const InputDecoration(
+              labelText: 'Repeticoes',
+              hintText: 'Ex: 8-10',
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _weightController,
+            decoration: const InputDecoration(
+              labelText: 'Carga inicial',
+              suffixText: 'kg',
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 24),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                _selectedGroups.isEmpty
+                    ? 'Selecione os grupos musculares para visualizar a previsao.'
+                    : 'Previsao: ate $_estimatedExerciseCount exercicios no treino.',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

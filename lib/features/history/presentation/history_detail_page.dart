@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workout_session/data/workout_session_service.dart';
 import '../../workout_session/models/performed_set.dart';
 import '../../workout_session/models/workout_session_summary.dart';
@@ -18,8 +19,9 @@ class HistoryDetailPage extends StatelessWidget {
         ? '-'
         : DateFormat('dd/MM/yyyy HH:mm').format(session.finishedAt!);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(session.workoutName)),
+    return AppPageScaffold(
+      title: session.workoutName,
+      currentIndex: 2,
       body: StreamBuilder<List<PerformedSet>>(
         stream: service.watchSessionSets(sessionId: session.id),
         builder: (context, snapshot) {
@@ -30,7 +32,7 @@ class HistoryDetailPage extends StatelessWidget {
           final sets = snapshot.data!;
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             children: [
               Card(
                 child: Padding(
@@ -47,7 +49,7 @@ class HistoryDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text('Data: $date'),
-                      Text('Séries: ${session.totalSets}'),
+                      Text('Series: ${session.totalSets}'),
                       Text(
                         'Volume total: ${session.totalVolume.toStringAsFixed(0)} kg',
                       ),
@@ -60,9 +62,7 @@ class HistoryDetailPage extends StatelessWidget {
                 (set) => Card(
                   child: ListTile(
                     title: Text(set.exerciseName),
-                    subtitle: Text(
-                      '${set.muscleGroup} • Série ${set.setNumber}',
-                    ),
+                    subtitle: Text('${set.muscleGroup} • Serie ${set.setNumber}'),
                     trailing: Text(
                       '${set.weight.toStringAsFixed(1)} kg x ${set.reps}',
                       style: const TextStyle(fontWeight: FontWeight.w700),

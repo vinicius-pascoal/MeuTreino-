@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../data/workout_service.dart';
 import '../models/workout.dart';
@@ -42,8 +43,8 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
               TextField(
                 controller: descriptionController,
                 decoration: const InputDecoration(
-                  labelText: 'Descrição',
-                  hintText: 'Ex: Peito, ombro e tríceps',
+                  labelText: 'Descricao',
+                  hintText: 'Ex: Peito, ombro e triceps',
                 ),
               ),
             ],
@@ -93,7 +94,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
         return AlertDialog(
           title: const Text('Excluir treino'),
           content: Text(
-            'Deseja excluir "${workout.name}"? Os exercícios desse treino também serão removidos.',
+            'Deseja excluir "${workout.name}"? Os exercicios desse treino tambem serao removidos.',
           ),
           actions: [
             TextButton(
@@ -122,17 +123,16 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meus treinos'),
-        actions: [
-          IconButton(
-            tooltip: 'Montar treino automático',
-            onPressed: _openAutoWorkoutPage,
-            icon: const Icon(Icons.auto_awesome),
-          ),
-        ],
-      ),
+    return AppPageScaffold(
+      title: 'Meus treinos',
+      currentIndex: 1,
+      actions: [
+        IconButton(
+          tooltip: 'Montar treino automatico',
+          onPressed: _openAutoWorkoutPage,
+          icon: const Icon(Icons.auto_awesome),
+        ),
+      ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createOrEditWorkoutDialog(),
         icon: const Icon(Icons.add),
@@ -172,7 +172,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                     FilledButton.icon(
                       onPressed: _openAutoWorkoutPage,
                       icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Montar treino automático'),
+                      label: const Text('Montar treino automatico'),
                     ),
                   ],
                 ),
@@ -181,7 +181,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             itemCount: workouts.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -196,7 +196,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                   ),
                   subtitle: Text(
                     workout.description.isEmpty
-                        ? 'Sem descrição'
+                        ? 'Sem descricao'
                         : workout.description,
                   ),
                   trailing: PopupMenuButton<String>(

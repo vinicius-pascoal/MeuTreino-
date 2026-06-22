@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
 import '../data/workout_plan_service.dart';
@@ -101,7 +102,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
       case 5:
         return 'Sex';
       case 6:
-        return 'Sáb';
+        return 'Sab';
       case 7:
         return 'Dom';
       default:
@@ -115,24 +116,22 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Configurar sequência')),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.all(16),
-        child: SizedBox(
-          height: 52,
-          child: FilledButton.icon(
-            onPressed: _savePlan,
-            icon: const Icon(Icons.save),
-            label: const Text('Salvar sequência'),
-          ),
+    return AppPageScaffold(
+      title: 'Configurar sequencia',
+      currentIndex: 1,
+      bottomAction: SizedBox(
+        height: 52,
+        child: FilledButton.icon(
+          onPressed: _savePlan,
+          icon: const Icon(Icons.save),
+          label: const Text('Salvar sequencia'),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
         children: [
           const Text(
-            'Selecione os treinos na ordem da sequência.',
+            'Selecione os treinos na ordem da sequencia.',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
@@ -146,7 +145,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Você ainda não criou treinos. Crie o Treino A, B e C antes de configurar a sequência.',
+                  'Voce ainda nao criou treinos. Crie o Treino A, B e C antes de configurar a sequencia.',
                 ),
               ),
             ),
@@ -162,7 +161,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
                 onChanged: (_) => _toggleWorkout(workout.id),
                 title: Text(workout.name),
                 subtitle: Text(
-                  selected ? 'Ordem na sequência: $order' : workout.description,
+                  selected ? 'Ordem na sequencia: $order' : workout.description,
                 ),
               ),
             );
