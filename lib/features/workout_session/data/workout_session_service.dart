@@ -87,6 +87,29 @@ class WorkoutSessionService {
         );
   }
 
+  Future<List<PerformedSet>> getSessionSets({required String sessionId}) async {
+    final snapshot = await _sessionsCollection
+        .doc(sessionId)
+        .collection('sets')
+        .orderBy('completedAt')
+        .get();
+
+    return snapshot.docs.map((doc) => PerformedSet.fromFirestore(doc)).toList();
+  }
+
+  Future<Map<String, List<PerformedSet>>> getSetsBySessionIds(
+    List<String> sessionIds,
+  ) async {
+    final entries = await Future.wait(
+      sessionIds.map((sessionId) async {
+        final sets = await getSessionSets(sessionId: sessionId);
+        return MapEntry(sessionId, sets);
+      }),
+    );
+
+    return {for (final entry in entries) entry.key: entry.value};
+  }
+
   Future<void> finishWorkoutSession({
     required Workout workout,
     required DateTime startedAt,
