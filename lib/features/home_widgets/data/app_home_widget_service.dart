@@ -41,6 +41,22 @@ class AppHomeWidgetState {
 
   String get weeklyStatusText => '$weeklyDone/$weeklyExpected treinos na semana';
 
+  String get todayStatusText => trainedToday ? 'Concluido hoje' : 'Pendente';
+
+  int get weeklyRemaining {
+    final remaining = weeklyExpected - weeklyDone;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  int get weeklyCompletionRate {
+    if (weeklyExpected <= 0) return 0;
+
+    final value = ((weeklyDone / weeklyExpected) * 100).round();
+    if (value < 0) return 0;
+    if (value > 100) return 100;
+    return value;
+  }
+
   String get fingerprint {
     return [
       workoutName,
@@ -64,6 +80,10 @@ class AppHomeWidgetService {
 
   static const String androidTodayWorkoutWidgetName =
       'TodayWorkoutWidgetProvider';
+  static const String androidTodayWorkoutCompactWidgetName =
+      'TodayWorkoutCompactWidgetProvider';
+  static const String androidWeeklyFrequencyWidgetName =
+      'WeeklyFrequencyWidgetProvider';
 
   final WorkoutService _workoutService;
   final WorkoutPlanService _workoutPlanService;
@@ -217,6 +237,8 @@ class AppHomeWidgetService {
     required bool trainedToday,
     String? currentWorkoutId,
   }) async {
+    final statusText = trainedToday ? 'Concluido hoje' : 'Pendente';
+
     await Future.wait([
       HomeWidget.saveWidgetData<String>('today_workout_name', workoutName),
       HomeWidget.saveWidgetData<String>(
@@ -224,6 +246,7 @@ class AppHomeWidgetService {
         workoutDescription,
       ),
       HomeWidget.saveWidgetData<bool>('trained_today', trainedToday),
+      HomeWidget.saveWidgetData<String>('today_status_text', statusText),
       HomeWidget.saveWidgetData<String>(
         'current_workout_id',
         currentWorkoutId ?? '',
@@ -235,9 +258,18 @@ class AppHomeWidgetService {
     required int weeklyDone,
     required int weeklyExpected,
   }) async {
+    final remaining = weeklyExpected - weeklyDone < 0
+        ? 0
+        : weeklyExpected - weeklyDone;
+    final rate = weeklyExpected <= 0
+        ? 0
+        : (((weeklyDone / weeklyExpected) * 100).round()).clamp(0, 100);
+
     await Future.wait([
       HomeWidget.saveWidgetData<int>('weekly_done', weeklyDone),
       HomeWidget.saveWidgetData<int>('weekly_expected', weeklyExpected),
+      HomeWidget.saveWidgetData<int>('weekly_remaining', remaining),
+      HomeWidget.saveWidgetData<int>('weekly_completion_rate', rate),
       HomeWidget.saveWidgetData<String>(
         'weekly_status_text',
         '$weeklyDone/$weeklyExpected treinos na semana',
@@ -246,6 +278,10 @@ class AppHomeWidgetService {
   }
 
   Future<void> _refreshWidget() async {
-    await HomeWidget.updateWidget(name: androidTodayWorkoutWidgetName);
+    await Future.wait([
+      HomeWidget.updateWidget(name: androidTodayWorkoutWidgetName),
+      HomeWidget.updateWidget(name: androidTodayWorkoutCompactWidgetName),
+      HomeWidget.updateWidget(name: androidWeeklyFrequencyWidgetName),
+    ]);
   }
 }
