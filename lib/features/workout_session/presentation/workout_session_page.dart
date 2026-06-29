@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/exercise_image.dart';
@@ -6,6 +8,7 @@ import '../../home_widgets/data/app_home_widget_service.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
 import '../../workouts/models/workout_exercise.dart';
+import '../data/workout_session_draft_service.dart';
 import '../data/workout_session_service.dart';
 import '../models/completed_set_input.dart';
 
@@ -18,13 +21,15 @@ class WorkoutSessionPage extends StatefulWidget {
   State<WorkoutSessionPage> createState() => _WorkoutSessionPageState();
 }
 
-class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
+class _WorkoutSessionPageState extends State<WorkoutSessionPage>
+    with WidgetsBindingObserver {
   static const _accentColor = Color(0xFF22C55E);
   static const _panelColor = Color(0xFF162033);
   static const _panelBorderColor = Color(0xFF243041);
 
   final _workoutService = WorkoutService();
   final _sessionService = WorkoutSessionService();
+  final _draftService = WorkoutSessionDraftService();
   final _homeWidgetService = AppHomeWidgetService();
 
   final _weightController = TextEditingController();
@@ -32,22 +37,111 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
 
   final List<CompletedSetInput> _completedSets = [];
 
-  late final DateTime _startedAt;
+  late DateTime _startedAt;
 
   String? _selectedExerciseId;
+  WorkoutSessionDraft? _pendingDraft;
+  bool _draftLoaded = false;
+  bool _draftApplied = false;
+  bool _sessionSaved = false;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startedAt = DateTime.now();
+    _loadSavedDraft();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_saveDraft());
     _weightController.dispose();
     _repsController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_saveDraft());
+    }
+  }
+
+  Future<void> _loadSavedDraft() async {
+    final draft = await _draftService.loadDraft(workoutId: widget.workout.id);
+
+    if (!mounted) return;
+
+    setState(() {
+      _pendingDraft = draft;
+      _draftLoaded = true;
+    });
+  }
+
+  void _applyDraftIfAvailable(
+    WorkoutSessionDraft? draft,
+    List<WorkoutExercise> exercises,
+  ) {
+    _draftApplied = true;
+
+    if (draft == null || draft.completedSets.isEmpty) {
+      return;
+    }
+
+    final exercisesById = {
+      for (final exercise in exercises) exercise.id: exercise,
+    };
+
+    _startedAt = draft.startedAt;
+    _completedSets.clear();
+
+    for (final item in draft.completedSets) {
+      final exercise = exercisesById[item.workoutExerciseId];
+
+      if (exercise == null || item.reps <= 0) {
+        continue;
+      }
+
+      if (_completedSetsCountFor(exercise.id) >= exercise.sets) {
+        continue;
+      }
+
+      _completedSets.add(
+        CompletedSetInput(
+          exercise: exercise,
+          setNumber: _completedSetsCountFor(exercise.id) + 1,
+          weight: item.weight,
+          reps: item.reps,
+        ),
+      );
+    }
+
+    final selectedExercise = exercisesById[draft.selectedExerciseId];
+
+    if (selectedExercise != null && !_isExerciseCompleted(selectedExercise)) {
+      _selectedExerciseId = selectedExercise.id;
+      _loadExerciseFields(selectedExercise);
+    } else {
+      _selectedExerciseId = null;
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    if (_sessionSaved || _completedSets.isEmpty) {
+      return;
+    }
+
+    await _draftService.saveDraft(
+      workout: widget.workout,
+      startedAt: _startedAt,
+      selectedExerciseId: _selectedExerciseId,
+      completedSets: _completedSets,
+    );
   }
 
   int _completedSetsCountFor(String exerciseId) {
@@ -99,6 +193,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
       _selectedExerciseId = exercise.id;
       _loadExerciseFields(exercise);
     });
+    unawaited(_saveDraft());
   }
 
   WorkoutExercise _resolveSelectedExercise(List<WorkoutExercise> exercises) {
@@ -165,18 +260,23 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
         }
       }
     });
+
+    await _saveDraft();
   }
 
   Future<void> _finishWorkout() async {
     setState(() => _saving = true);
 
     try {
+      await _saveDraft();
       await _sessionService.finishWorkoutSession(
         workout: widget.workout,
         startedAt: _startedAt,
         completedSets: _completedSets,
       );
       await _homeWidgetService.syncFromAppState();
+      await _draftService.clearDraft(workoutId: widget.workout.id);
+      _sessionSaved = true;
 
       if (!mounted) return;
 
@@ -220,6 +320,16 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
               child: Text('Este treino nao possui exercicios.'),
             ),
           );
+        }
+
+        if (!_draftLoaded) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (!_draftApplied) {
+          _applyDraftIfAvailable(_pendingDraft, exercises);
         }
 
         final isWorkoutCompleted = _isWorkoutCompleted(exercises);

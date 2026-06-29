@@ -22,10 +22,10 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
     'Peito',
     'Costas',
     'Ombro',
-    'Biceps',
-    'Triceps',
+    'B\u00edceps',
+    'Tr\u00edceps',
     'Pernas',
-    'Abdomen',
+    'Abd\u00f4men',
   ];
 
   final List<String> _selectedGroups = [];
@@ -190,7 +190,7 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
             controller: _nameController,
             decoration: const InputDecoration(
               labelText: 'Nome do treino',
-              hintText: 'Ex: Treino Costas e Biceps',
+              hintText: 'Ex: Treino Costas e B\u00edceps',
             ),
           ),
           const SizedBox(height: 14),
