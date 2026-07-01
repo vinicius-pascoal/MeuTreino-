@@ -57,7 +57,8 @@ class _HomePageState extends State<HomePage> {
 
   DateTime get _monthStart => DateTime(_focusedDay.year, _focusedDay.month, 1);
 
-  DateTime get _monthEnd => DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+  DateTime get _monthEnd =>
+      DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
 
   int _countExpectedDaysInMonth(WorkoutPlan? plan) {
     final currentPlan = plan;
@@ -169,7 +170,8 @@ class _HomePageState extends State<HomePage> {
                           _TodayWorkoutCard(
                             workout: currentWorkout,
                             trainedToday: trainedToday,
-                            onConfigure: () => _openPage(const WorkoutPlanPage()),
+                            onConfigure: () =>
+                                _openPage(const WorkoutPlanPage()),
                             onStart: currentWorkout == null
                                 ? null
                                 : () => _startWorkout(currentWorkout),
@@ -242,11 +244,6 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
                           const SizedBox(height: 24),
-                          const _SectionHeader(
-                            title: 'Acessos rapidos',
-                            subtitle: 'Rotas importantes com acabamento mais moderno.',
-                          ),
-                          const SizedBox(height: 12),
                           GridView.count(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -254,37 +251,6 @@ class _HomePageState extends State<HomePage> {
                             mainAxisSpacing: 12,
                             crossAxisSpacing: 12,
                             childAspectRatio: 0.9,
-                            children: [
-                              _QuickActionCard(
-                                title: 'Treino automatico',
-                                subtitle: 'Monte sugestoes em segundos.',
-                                icon: Icons.auto_awesome,
-                                accent: const Color(0xFF22C55E),
-                                onTap: () => _openPage(const AutoWorkoutPage()),
-                              ),
-                              _QuickActionCard(
-                                title: 'Meus treinos',
-                                subtitle: 'Crie e edite suas fichas.',
-                                icon: Icons.fitness_center,
-                                accent: const Color(0xFF38BDF8),
-                                onTap: () => _openPage(const WorkoutsPage()),
-                              ),
-                              _QuickActionCard(
-                                title: 'Sequencia ABC',
-                                subtitle: 'Organize a ordem da semana.',
-                                icon: Icons.route_rounded,
-                                accent: const Color(0xFFF59E0B),
-                                onTap: () => _openPage(const WorkoutPlanPage()),
-                              ),
-                              _QuickActionCard(
-                                title: 'Biblioteca',
-                                subtitle: 'Revise tecnicas e exercicios.',
-                                icon: Icons.photo_library_outlined,
-                                accent: const Color(0xFFF472B6),
-                                onTap: () =>
-                                    _openPage(const ExerciseLibraryPage()),
-                              ),
-                            ],
                           ),
                         ],
                       ),
@@ -314,15 +280,8 @@ class _HomeTopBar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'MeuTreino+',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('MeuTreino+', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 4),
-              const Text(
-                'Treino, historico e progresso com cara de app final.',
-                style: TextStyle(color: Colors.white70),
-              ),
             ],
           ),
         ),
@@ -575,75 +534,6 @@ class _LegendPill extends StatelessWidget {
           const SizedBox(width: 8),
           Text(label),
         ],
-      ),
-    );
-  }
-}
-
-class _QuickActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _QuickActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(28),
-      onTap: onTap,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [accent.withValues(alpha: 0.22), const Color(0xFF0F1B2D)],
-          ),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: accent),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                style: const TextStyle(color: Colors.white70),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
