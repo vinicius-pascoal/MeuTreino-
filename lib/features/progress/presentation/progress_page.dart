@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/app_theme.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
+import '../../../core/widgets/app_section_header.dart';
 import '../../workout_session/data/workout_session_service.dart';
 import '../../workout_session/models/performed_set.dart';
 import '../../workout_session/models/workout_session_summary.dart';
@@ -51,7 +53,9 @@ class ProgressPage extends StatelessWidget {
               final averageVolume = totalWorkouts == 0
                   ? 0.0
                   : totalVolume / totalWorkouts;
-              final weeklyTrend = _buildTrendData(sessions.take(7).toList().reversed.toList());
+              final weeklyTrend = _buildTrendData(
+                sessions.take(7).toList().reversed.toList(),
+              );
               final groupStats = _buildMuscleGroupStats(allSets);
 
               return ListView(
@@ -64,16 +68,18 @@ class ProgressPage extends StatelessWidget {
                     averageVolume: averageVolume,
                   ),
                   const SizedBox(height: 24),
-                  const _SectionHeader(
+                  const AppSectionHeader(
                     title: 'Ritmo recente',
-                    subtitle: 'Ultimos treinos em uma leitura mais visual.',
+                    subtitle:
+                        'Leitura visual dos ultimos treinos para entender volume e consistencia.',
                   ),
                   const SizedBox(height: 12),
                   _TrendChart(data: weeklyTrend),
                   const SizedBox(height: 24),
-                  const _SectionHeader(
+                  const AppSectionHeader(
                     title: 'Grupos musculares',
-                    subtitle: 'Volume e numero de series concentrados por grupo.',
+                    subtitle:
+                        'Volume, series e pico de carga por area trabalhada.',
                   ),
                   const SizedBox(height: 12),
                   if (groupStats.isEmpty)
@@ -96,9 +102,10 @@ class ProgressPage extends StatelessWidget {
                       );
                     }),
                   const SizedBox(height: 24),
-                  const _SectionHeader(
+                  const AppSectionHeader(
                     title: 'Ultimos treinos',
-                    subtitle: 'Historico compacto com volume e densidade.',
+                    subtitle:
+                        'Historico compacto com volume, series e grupos mais acionados.',
                   ),
                   const SizedBox(height: 12),
                   ...sessions.take(10).map(
@@ -178,32 +185,35 @@ class _SummaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
+        borderRadius: BorderRadius.circular(30),
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF18314E), Color(0xFF0D1E32), Color(0xFF0A1627)],
+          colors: [
+            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
+            AppThemeColors.surface.withValues(alpha: 0.94),
+          ],
         ),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppThemeColors.outlineStrong),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Panorama geral',
-            style: TextStyle(color: Colors.white70),
+          Text('Panorama geral', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 10),
+          Text(
+            'Seu progresso em uma leitura mais comparavel.',
+            style: theme.textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Seu progresso com leitura mais visual e comparavel.',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              height: 1.1,
-            ),
+          Text(
+            'Volume, densidade e media por treino em uma visao unica.',
+            style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 18),
           Row(
@@ -212,7 +222,7 @@ class _SummaryPanel extends StatelessWidget {
                 child: _SummaryMetric(
                   label: 'Treinos',
                   value: '$totalWorkouts',
-                  accent: const Color(0xFF22C55E),
+                  accent: AppThemeColors.primaryStrong,
                 ),
               ),
               const SizedBox(width: 10),
@@ -220,7 +230,7 @@ class _SummaryPanel extends StatelessWidget {
                 child: _SummaryMetric(
                   label: 'Series',
                   value: '$totalSets',
-                  accent: const Color(0xFF38BDF8),
+                  accent: AppThemeColors.secondary,
                 ),
               ),
             ],
@@ -232,7 +242,7 @@ class _SummaryPanel extends StatelessWidget {
                 child: _SummaryMetric(
                   label: 'Volume',
                   value: '${totalVolume.toStringAsFixed(0)} kg',
-                  accent: const Color(0xFFF59E0B),
+                  accent: AppThemeColors.warning,
                 ),
               ),
               const SizedBox(width: 10),
@@ -240,7 +250,7 @@ class _SummaryPanel extends StatelessWidget {
                 child: _SummaryMetric(
                   label: 'Media',
                   value: '${averageVolume.toStringAsFixed(0)} kg',
-                  accent: const Color(0xFFF472B6),
+                  accent: AppThemeColors.primary,
                 ),
               ),
             ],
@@ -267,46 +277,23 @@ class _SummaryMetric extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppThemeColors.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white60)),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: accent,
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _SectionHeader({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
-        Text(subtitle, style: const TextStyle(color: Colors.white70)),
-      ],
     );
   }
 }
@@ -327,7 +314,10 @@ class _TrendChart extends StatelessWidget {
       );
     }
 
-    final maxValue = data.fold<double>(0, (max, item) => math.max(max, item.value));
+    final maxValue = data.fold<double>(
+      0,
+      (max, item) => math.max(max, item.value),
+    );
     final safeMax = maxValue <= 0 ? 1.0 : maxValue;
 
     return Card(
@@ -336,13 +326,13 @@ class _TrendChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Volume por treino',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 18),
             SizedBox(
-              height: 180,
+              height: 184,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: data.map((point) {
@@ -356,36 +346,32 @@ class _TrendChart extends StatelessWidget {
                         children: [
                           Text(
                             point.value.toStringAsFixed(0),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white60,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 8),
                           Container(
-                            height: 110 * heightFactor.clamp(0.12, 1.0),
+                            height: 112 * heightFactor.clamp(0.12, 1.0),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               gradient: const LinearGradient(
                                 begin: Alignment.bottomCenter,
                                 end: Alignment.topCenter,
-                                colors: [Color(0xFF22C55E), Color(0xFF38BDF8)],
+                                colors: [
+                                  AppThemeColors.primary,
+                                  AppThemeColors.secondary,
+                                ],
                               ),
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             point.label,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white70,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                           Text(
                             '${point.sets} s',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white38,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppThemeColors.textSoft,
                             ),
                           ),
                         ],
@@ -423,17 +409,13 @@ class _MuscleGroupCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     stat.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 Text(
                   '${stat.volume.toStringAsFixed(0)} kg',
-                  style: const TextStyle(
-                    color: Color(0xFF22C55E),
-                    fontWeight: FontWeight.w800,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppThemeColors.primaryStrong,
                   ),
                 ),
               ],
@@ -445,7 +427,9 @@ class _MuscleGroupCard extends StatelessWidget {
                 minHeight: 10,
                 value: progress.clamp(0.0, 1.0),
                 backgroundColor: Colors.white10,
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF38BDF8)),
+                valueColor: const AlwaysStoppedAnimation(
+                  AppThemeColors.secondary,
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -493,15 +477,16 @@ class _MiniMetric extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppThemeColors.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white54)),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
         ],
       ),
@@ -520,7 +505,10 @@ class _RecentSessionCard extends StatelessWidget {
     final date = session.finishedAt == null
         ? '-'
         : DateFormat('dd/MM HH:mm').format(session.finishedAt!);
-    final groups = sets.map((set) => set.muscleGroup).where((group) => group.isNotEmpty).toSet();
+    final groups = sets
+        .map((set) => set.muscleGroup)
+        .where((group) => group.isNotEmpty)
+        .toSet();
 
     return Card(
       child: Padding(
@@ -533,20 +521,17 @@ class _RecentSessionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     session.workoutName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                Text(date, style: const TextStyle(color: Colors.white54)),
+                Text(date, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
             const SizedBox(height: 10),
             Text(
-              '${session.totalVolume.toStringAsFixed(0)} kg • ${session.totalSets} series',
-              style: const TextStyle(
-                color: Color(0xFF22C55E),
+              '${session.totalVolume.toStringAsFixed(0)} kg - ${session.totalSets} series',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppThemeColors.primaryStrong,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -564,10 +549,13 @@ class _RecentSessionCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppThemeColors.outline),
                     ),
                     child: Text(
                       group,
-                      style: const TextStyle(fontSize: 12),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppThemeColors.textMuted,
+                      ),
                     ),
                   );
                 }).toList(),

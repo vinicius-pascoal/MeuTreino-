@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../../../app/app_theme.dart';
 import '../../../../core/utils/date_key.dart';
 import '../../../workout_plan/models/workout_plan.dart';
 import '../../../workout_session/models/workout_session_summary.dart';
@@ -47,7 +48,7 @@ class AttendanceCalendar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
         child: TableCalendar(
           locale: 'pt_BR',
           firstDay: DateTime.utc(2024, 1, 1),
@@ -60,28 +61,31 @@ class AttendanceCalendar extends StatelessWidget {
             titleCentered: true,
             formatButtonVisible: false,
             titleTextStyle: Theme.of(context).textTheme.titleMedium!,
-            leftChevronIcon: const Icon(Icons.chevron_left_rounded),
-            rightChevronIcon: const Icon(Icons.chevron_right_rounded),
+            leftChevronIcon: const Icon(
+              Icons.chevron_left_rounded,
+              color: Colors.white,
+            ),
+            rightChevronIcon: const Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white,
+            ),
           ),
           daysOfWeekStyle: const DaysOfWeekStyle(
             weekdayStyle: TextStyle(
-              color: Colors.white70,
+              color: AppThemeColors.textMuted,
               fontWeight: FontWeight.w700,
             ),
             weekendStyle: TextStyle(
-              color: Colors.white54,
+              color: AppThemeColors.textSoft,
               fontWeight: FontWeight.w700,
             ),
           ),
           calendarStyle: const CalendarStyle(
-            outsideTextStyle: TextStyle(color: Colors.white38),
+            outsideTextStyle: TextStyle(color: AppThemeColors.textSoft),
             defaultTextStyle: TextStyle(color: Colors.white),
             weekendTextStyle: TextStyle(color: Colors.white),
             cellMargin: EdgeInsets.all(4),
-            todayDecoration: BoxDecoration(
-              color: Color(0xFF1E293B),
-              shape: BoxShape.circle,
-            ),
+            todayDecoration: BoxDecoration(color: Colors.transparent),
           ),
           calendarBuilders: CalendarBuilders(
             defaultBuilder: (context, day, _) => _buildDay(day),
@@ -99,36 +103,35 @@ class AttendanceCalendar extends StatelessWidget {
     final attended = _hasWorkout(day);
     final missed = _isMissedDay(day);
 
-    Color? color;
+    Color? backgroundColor;
+    Color borderColor = Colors.transparent;
+    Color textColor = Colors.white;
 
     if (attended) {
-      color = const Color(0xFF22C55E);
+      backgroundColor = AppThemeColors.primary.withValues(alpha: 0.16);
+      borderColor = AppThemeColors.primary.withValues(alpha: 0.28);
+      textColor = AppThemeColors.primaryStrong;
     } else if (missed) {
-      color = const Color(0xFFEF4444);
+      backgroundColor = AppThemeColors.danger.withValues(alpha: 0.16);
+      borderColor = AppThemeColors.danger.withValues(alpha: 0.24);
+      textColor = AppThemeColors.danger;
     } else if (isToday) {
-      color = const Color(0xFF334155);
+      backgroundColor = AppThemeColors.surfaceSoft.withValues(alpha: 0.9);
+      borderColor = AppThemeColors.outlineStrong;
     }
 
     return Container(
       margin: const EdgeInsets.all(5),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        boxShadow: color == null
-            ? null
-            : [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
       ),
       child: Text(
         '${day.day}',
         style: TextStyle(
-          color: Colors.white,
+          color: textColor,
           fontWeight: isToday || attended || missed
               ? FontWeight.w800
               : FontWeight.normal,

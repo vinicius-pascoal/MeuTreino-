@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_service.dart';
+import 'widgets/auth_shell.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -54,40 +55,45 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Criar conta')),
-      body: SafeArea(
-        minimum: const EdgeInsets.all(24),
-        child: ListView(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Nome'),
+    return AuthShell(
+      showBackButton: true,
+      title: 'Crie sua conta\ne comece com calma.',
+      subtitle:
+          'Deixe o app pronto para registrar treinos, cargas e frequencia sem excesso visual.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(labelText: 'Nome'),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: 'E-mail'),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _passwordController,
+            decoration: const InputDecoration(labelText: 'Senha'),
+            obscureText: true,
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading ? null : _register,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Text('Cadastrar'),
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'E-mail'),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Senha'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 52,
-              child: FilledButton(
-                onPressed: _loading ? null : _register,
-                child: _loading
-                    ? const CircularProgressIndicator()
-                    : const Text('Cadastrar'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

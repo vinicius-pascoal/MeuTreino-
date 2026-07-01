@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_service.dart';
 import 'register_page.dart';
+import 'widgets/auth_shell.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -54,59 +55,47 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        minimum: const EdgeInsets.all(24),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.fitness_center,
-                  size: 72,
-                  color: Color(0xFF22C55E),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'MeuTreino+',
-                  style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Seu progresso na academia, série por série.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'E-mail'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(labelText: 'Senha'),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _loading ? null : _login,
-                    child: _loading
-                        ? const CircularProgressIndicator()
-                        : const Text('Entrar'),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _goToRegister,
-                  child: const Text('Criar conta'),
-                ),
-              ],
+    return AuthShell(
+      title: 'Treino organizado,\nprogresso claro.',
+      subtitle:
+          'Entre para acompanhar sua rotina com uma interface mais limpa e focada no essencial.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: 'E-mail'),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _passwordController,
+            decoration: const InputDecoration(labelText: 'Senha'),
+            obscureText: true,
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading ? null : _login,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Text('Entrar'),
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: _goToRegister,
+              child: const Text('Criar conta'),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_theme.dart';
 import '../../../core/utils/date_key.dart';
+import '../../../core/widgets/app_background.dart';
 import '../../../core/widgets/app_bottom_nav_bar.dart';
+import '../../../core/widgets/app_section_header.dart';
 import '../../auth/data/auth_service.dart';
 import '../../exercises/presentation/exercise_library_page.dart';
 import '../../home_widgets/data/app_home_widget_service.dart';
@@ -138,6 +141,7 @@ class _HomePageState extends State<HomePage> {
                   currentWorkout: currentWorkout,
                   trainedToday: trainedToday,
                 );
+
                 final expectedDays = _countExpectedDaysInMonth(plan);
                 final attendanceRate = expectedDays == 0
                     ? 0
@@ -148,25 +152,14 @@ class _HomePageState extends State<HomePage> {
 
                 return Scaffold(
                   extendBody: true,
-                  body: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFF091524),
-                          Color(0xFF07111F),
-                          Color(0xFF050B14),
-                        ],
-                      ),
-                    ),
+                  body: AppBackground(
                     child: SafeArea(
                       bottom: false,
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 140),
                         children: [
                           _HomeTopBar(onLogout: _logout),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 26),
                           _TodayWorkoutCard(
                             workout: currentWorkout,
                             trainedToday: trainedToday,
@@ -176,38 +169,50 @@ class _HomePageState extends State<HomePage> {
                                 ? null
                                 : () => _startWorkout(currentWorkout),
                           ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _MetricCard(
-                                  label: 'No mes',
-                                  value: '${sessions.length}',
-                                  hint: 'treinos',
-                                  accent: const Color(0xFF22C55E),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _MetricCard(
-                                  label: 'Meta',
-                                  value: '$expectedDays',
-                                  hint: 'dias alvo',
-                                  accent: const Color(0xFF38BDF8),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _MetricCard(
-                                  label: 'Ritmo',
-                                  value: '$attendanceRate%',
-                                  hint: 'aderencia',
-                                  accent: const Color(0xFFF59E0B),
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 16),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isCompact = constraints.maxWidth < 520;
+                              final itemWidth = isCompact
+                                  ? (constraints.maxWidth - 12) / 2
+                                  : (constraints.maxWidth - 24) / 3;
+
+                              return Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  SizedBox(
+                                    width: itemWidth,
+                                    child: _MetricCard(
+                                      label: 'No mes',
+                                      value: '${sessions.length}',
+                                      hint: 'treinos concluidos',
+                                      accent: AppThemeColors.primary,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: itemWidth,
+                                    child: _MetricCard(
+                                      label: 'Meta',
+                                      value: '$expectedDays',
+                                      hint: 'dias planejados',
+                                      accent: AppThemeColors.secondary,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: itemWidth,
+                                    child: _MetricCard(
+                                      label: 'Ritmo',
+                                      value: '$attendanceRate%',
+                                      hint: 'aderencia atual',
+                                      accent: AppThemeColors.warning,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 28),
                           AttendanceCalendar(
                             focusedDay: _focusedDay,
                             sessions: sessions,
@@ -224,27 +229,18 @@ class _HomePageState extends State<HomePage> {
                             runSpacing: 10,
                             children: [
                               _LegendPill(
-                                color: Color(0xFF22C55E),
+                                color: AppThemeColors.primary,
                                 label: 'Treino concluido',
                               ),
                               _LegendPill(
-                                color: Color(0xFFEF4444),
+                                color: AppThemeColors.danger,
                                 label: 'Dia perdido',
                               ),
                               _LegendPill(
-                                color: Color(0xFF334155),
+                                color: AppThemeColors.surfaceSoft,
                                 label: 'Hoje',
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 24),
-                          GridView.count(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.9,
                           ),
                         ],
                       ),
@@ -268,28 +264,43 @@ class _HomeTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('MeuTreino+', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-            ],
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: IconButton(
-            tooltip: 'Sair',
-            onPressed: onLogout,
-            icon: const Icon(Icons.logout_rounded),
-          ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: AppThemeColors.outline),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.fitness_center_rounded,
+                    size: 18,
+                    color: AppThemeColors.primaryStrong,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'MeuTreino+',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Sair',
+              onPressed: onLogout,
+              icon: const Icon(Icons.logout_rounded),
+            ),
+          ],
         ),
       ],
     );
@@ -312,41 +323,51 @@ class _TodayWorkoutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentWorkout = workout;
+    final theme = Theme.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(32),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: 0.06),
-            Colors.white.withValues(alpha: 0.03),
+            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
+            AppThemeColors.surface.withValues(alpha: 0.94),
           ],
         ),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppThemeColors.outlineStrong),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 28,
+            offset: const Offset(0, 18),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(22),
         child: currentWorkout == null
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Treino do dia',
-                    style: TextStyle(color: Colors.white60),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: AppThemeColors.textMuted,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  const SizedBox(height: 10),
+                  Text(
                     'Nenhuma sequencia configurada',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                    style: theme.textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Organize a ordem dos treinos para liberar a recomendacao diaria.',
-                    style: TextStyle(color: Colors.white70),
+                  Text(
+                    'Organize a ordem dos treinos para liberar a recomendacao diaria e deixar a rotina mais previsivel.',
+                    style: theme.textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   FilledButton.icon(
                     onPressed: onConfigure,
                     icon: const Icon(Icons.route_rounded),
@@ -359,67 +380,65 @@ class _TodayWorkoutCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Treino do dia',
-                          style: TextStyle(color: Colors.white60),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: trainedToday
-                              ? const Color(0xFF22C55E).withValues(alpha: 0.18)
-                              : const Color(0xFF38BDF8).withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          trainedToday ? 'Concluido' : 'Pronto',
-                          style: TextStyle(
-                            color: trainedToday
-                                ? const Color(0xFF86EFAC)
-                                : const Color(0xFF7DD3FC),
-                            fontWeight: FontWeight.w700,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: AppThemeColors.textMuted,
                           ),
                         ),
                       ),
+                      _StatusPill(
+                        label: trainedToday ? 'Concluido' : 'Pronto',
+                        backgroundColor: trainedToday
+                            ? AppThemeColors.primary.withValues(alpha: 0.14)
+                            : AppThemeColors.secondary.withValues(alpha: 0.14),
+                        textColor: trainedToday
+                            ? AppThemeColors.primaryStrong
+                            : AppThemeColors.secondary,
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
                     currentWorkout.name,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.8,
-                    ),
+                    style: theme.textTheme.headlineMedium,
                   ),
                   if (currentWorkout.description.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Text(
                       currentWorkout.description,
-                      style: const TextStyle(color: Colors.white70),
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                   const SizedBox(height: 18),
                   if (trainedToday)
-                    const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Color(0xFF22C55E)),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Treino de hoje registrado. Aproveite o app para planejar o proximo passo.',
-                            style: TextStyle(
-                              color: Color(0xFF86EFAC),
-                              fontWeight: FontWeight.w700,
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppThemeColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppThemeColors.primary.withValues(alpha: 0.16),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppThemeColors.primaryStrong,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Treino de hoje registrado. Use o app para revisar os proximos passos da semana.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppThemeColors.primaryStrong,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     )
                   else
                     SizedBox(
@@ -432,6 +451,33 @@ class _TodayWorkoutCard extends StatelessWidget {
                     ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+
+  const _StatusPill({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -452,52 +498,100 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppThemeColors.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white60)),
-          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(label, style: theme.textTheme.labelMedium),
+            ],
+          ),
+          const SizedBox(height: 14),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: accent,
-            ),
+            style: theme.textTheme.headlineSmall?.copyWith(color: accent),
           ),
-          const SizedBox(height: 2),
-          Text(hint, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 4),
+          Text(hint, style: theme.textTheme.bodySmall),
         ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
   final String title;
   final String subtitle;
+  final Color accent;
+  final VoidCallback onTap;
 
-  const _SectionHeader({required this.title, required this.subtitle});
+  const _QuickActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+    final theme = Theme.of(context);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: accent),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.arrow_outward_rounded,
+                    size: 18,
+                    color: AppThemeColors.textSoft,
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(subtitle, style: theme.textTheme.bodySmall),
+            ],
+          ),
         ),
-        const SizedBox(height: 4),
-        Text(subtitle, style: const TextStyle(color: Colors.white70)),
-      ],
+      ),
     );
   }
 }
@@ -515,7 +609,7 @@ class _LegendPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppThemeColors.outline),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -523,7 +617,10 @@ class _LegendPill extends StatelessWidget {
           Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
           ),
           const SizedBox(width: 8),
           Text(label),
