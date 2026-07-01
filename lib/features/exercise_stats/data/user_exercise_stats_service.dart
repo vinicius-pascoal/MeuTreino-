@@ -13,7 +13,7 @@ class UserExerciseStatsService {
     final user = _auth.currentUser;
 
     if (user == null) {
-      throw Exception('UsuÃ¡rio nÃ£o autenticado.');
+      throw Exception('Usuario nao autenticado.');
     }
 
     return user.uid;

@@ -213,6 +213,31 @@ class WorkoutService {
         });
   }
 
+  Future<void> replaceWorkoutExercise({
+    required String workoutId,
+    required String workoutExerciseId,
+    required Exercise exercise,
+    required double currentWeight,
+  }) async {
+    await _workoutsCollection
+        .doc(workoutId)
+        .collection('exercises')
+        .doc(workoutExerciseId)
+        .update({
+          'exerciseLibraryId': exercise.id,
+          'name': exercise.name,
+          'muscleGroup': exercise.muscleGroup,
+          'muscleRegion': exercise.muscleRegion,
+          'movementPattern': exercise.movementPattern,
+          'equipment': exercise.equipment,
+          'isCompound': exercise.isCompound,
+          'priority': exercise.priority,
+          'imageAsset': exercise.imageAsset,
+          'currentWeight': currentWeight,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
   Future<void> deleteWorkoutExercise({
     required String workoutId,
     required String workoutExerciseId,

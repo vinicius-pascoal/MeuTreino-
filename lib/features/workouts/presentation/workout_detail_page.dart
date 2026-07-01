@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
+import '../../exercise_stats/data/user_exercise_stats_service.dart';
+import '../../exercises/data/exercise_library_service.dart';
+import '../../exercises/models/exercise.dart';
 import '../../exercises/presentation/select_exercise_page.dart';
 import '../../workout_session/presentation/workout_session_page.dart';
 import '../data/workout_service.dart';
@@ -109,6 +112,213 @@ class WorkoutDetailPage extends StatelessWidget {
     restController.dispose();
     weightController.dispose();
     notesController.dispose();
+  }
+
+  Future<void> _replaceExercise({
+    required BuildContext context,
+    required WorkoutExercise exercise,
+  }) async {
+    final workoutService = WorkoutService();
+    final libraryService = ExerciseLibraryService();
+    final exerciseStatsService = UserExerciseStatsService();
+
+    try {
+      final libraryExercises = await libraryService.getExercisesOnce();
+      final replacementOptions = _buildReplacementOptions(
+        currentExercise: exercise,
+        libraryExercises: libraryExercises,
+      );
+
+      if (!context.mounted) return;
+
+      if (replacementOptions.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nao encontrei exercicios da mesma area para trocar.'),
+          ),
+        );
+        return;
+      }
+
+      final replacement = await showModalBottomSheet<Exercise>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) {
+          return SafeArea(
+            child: SizedBox(
+              height: 520,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Trocar ${exercise.name}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Escolha um exercicio da mesma area muscular.',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                      itemCount: replacementOptions.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = replacementOptions[index];
+                        final sameRegion =
+                            _normalize(item.muscleRegion) ==
+                            _normalize(exercise.muscleRegion);
+
+                        return Card(
+                          child: ListTile(
+                            onTap: () => Navigator.of(sheetContext).pop(item),
+                            leading: Icon(
+                              sameRegion
+                                  ? Icons.check_circle
+                                  : Icons.swap_horiz_rounded,
+                              color: sameRegion
+                                  ? const Color(0xFF22C55E)
+                                  : Colors.white70,
+                            ),
+                            title: Text(item.name),
+                            subtitle: Text(_replacementSubtitle(item)),
+                            trailing: sameRegion
+                                ? const Text(
+                                    'Mais proximo',
+                                    style: TextStyle(
+                                      color: Color(0xFF22C55E),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      if (replacement == null) {
+        return;
+      }
+
+      final replacementWeight =
+          await exerciseStatsService.getLastUsedWeight(
+            exerciseLibraryId: replacement.id,
+          ) ??
+          exercise.currentWeight;
+
+      await workoutService.replaceWorkoutExercise(
+        workoutId: workout.id,
+        workoutExerciseId: exercise.id,
+        exercise: replacement,
+        currentWeight: replacementWeight,
+      );
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Exercicio trocado. Revise a carga e observacoes se necessario.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao trocar exercicio: $error')),
+      );
+    }
+  }
+
+  List<Exercise> _buildReplacementOptions({
+    required WorkoutExercise currentExercise,
+    required List<Exercise> libraryExercises,
+  }) {
+    final currentGroup = _normalize(currentExercise.muscleGroup);
+    final currentRegion = _normalize(currentExercise.muscleRegion);
+    final currentPattern = _normalize(currentExercise.movementPattern);
+
+    final options = libraryExercises.where((candidate) {
+      if (candidate.id == currentExercise.exerciseLibraryId) {
+        return false;
+      }
+
+      return _normalize(candidate.muscleGroup) == currentGroup;
+    }).toList();
+
+    options.sort((a, b) {
+      final regionCompare = _matchPriority(
+        valueA: a.muscleRegion,
+        valueB: b.muscleRegion,
+        target: currentRegion,
+      );
+      if (regionCompare != 0) {
+        return regionCompare;
+      }
+
+      final patternCompare = _matchPriority(
+        valueA: a.movementPattern,
+        valueB: b.movementPattern,
+        target: currentPattern,
+      );
+      if (patternCompare != 0) {
+        return patternCompare;
+      }
+
+      final priorityCompare = a.priority.compareTo(b.priority);
+      if (priorityCompare != 0) {
+        return priorityCompare;
+      }
+
+      return a.name.compareTo(b.name);
+    });
+
+    return options;
+  }
+
+  int _matchPriority({
+    required String valueA,
+    required String valueB,
+    required String target,
+  }) {
+    final aScore = _normalize(valueA) == target ? 0 : 1;
+    final bScore = _normalize(valueB) == target ? 0 : 1;
+    return aScore.compareTo(bScore);
+  }
+
+  String _replacementSubtitle(Exercise exercise) {
+    final parts = <String>[exercise.muscleGroup];
+
+    if (exercise.muscleRegion.trim().isNotEmpty) {
+      parts.add(exercise.muscleRegion.trim());
+    }
+
+    if (exercise.equipment.trim().isNotEmpty) {
+      parts.add(exercise.equipment.trim());
+    }
+
+    return parts.join(' - ');
   }
 
   Future<void> _deleteExercise({
@@ -232,6 +442,13 @@ class WorkoutDetailPage extends StatelessWidget {
                               ),
                               PopupMenuButton<String>(
                                 onSelected: (value) {
+                                  if (value == 'replace') {
+                                    _replaceExercise(
+                                      context: context,
+                                      exercise: exercise,
+                                    );
+                                  }
+
                                   if (value == 'edit') {
                                     _editExerciseDialog(
                                       context: context,
@@ -247,6 +464,10 @@ class WorkoutDetailPage extends StatelessWidget {
                                   }
                                 },
                                 itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                    value: 'replace',
+                                    child: Text('Trocar por similar'),
+                                  ),
                                   PopupMenuItem(
                                     value: 'edit',
                                     child: Text('Editar'),
@@ -266,7 +487,7 @@ class WorkoutDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${exercise.sets} series • ${exercise.targetReps} reps • ${exercise.restSeconds}s descanso',
+                            '${exercise.sets} series - ${exercise.targetReps} reps - ${exercise.restSeconds}s descanso',
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -300,6 +521,10 @@ class WorkoutDetailPage extends StatelessWidget {
       parts.add(exercise.equipment.trim());
     }
 
-    return parts.join(' • ');
+    return parts.join(' - ');
+  }
+
+  String _normalize(String value) {
+    return value.trim().toLowerCase();
   }
 }
