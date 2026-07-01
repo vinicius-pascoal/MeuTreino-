@@ -208,12 +208,6 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
                           const SizedBox(height: 22),
-                          const _SectionHeader(
-                            title: 'Ritmo do mes',
-                            subtitle:
-                                'Acompanhe presencas, faltas e a cadencia do plano.',
-                          ),
-                          const SizedBox(height: 12),
                           AttendanceCalendar(
                             focusedDay: _focusedDay,
                             sessions: sessions,
