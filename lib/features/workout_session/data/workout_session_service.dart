@@ -36,6 +36,13 @@ class WorkoutSessionService {
     return _firestore.collection('users').doc(_userId).collection('workouts');
   }
 
+  CollectionReference<Map<String, dynamic>> get _exerciseStatsCollection {
+    return _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('exercise_stats');
+  }
+
   DocumentReference<Map<String, dynamic>> get _planRef {
     return _firestore
         .collection('users')
@@ -147,10 +154,12 @@ class WorkoutSessionService {
 
     final sessionRef = _sessionsCollection.doc();
 
-    final latestWeightByWorkoutExerciseId = <String, double>{};
+    final latestSetByWorkoutExerciseId = <String, CompletedSetInput>{};
+    final latestSetByExerciseLibraryId = <String, CompletedSetInput>{};
 
     for (final item in completedSets) {
-      latestWeightByWorkoutExerciseId[item.exercise.id] = item.weight;
+      latestSetByWorkoutExerciseId[item.exercise.id] = item;
+      latestSetByExerciseLibraryId[item.exercise.exerciseLibraryId] = item;
     }
 
     await _firestore.runTransaction((transaction) async {
@@ -186,16 +195,32 @@ class WorkoutSessionService {
         });
       }
 
-      for (final entry in latestWeightByWorkoutExerciseId.entries) {
+      for (final entry in latestSetByWorkoutExerciseId.entries) {
+        final item = entry.value;
         final exerciseRef = _workoutsCollection
             .doc(workout.id)
             .collection('exercises')
             .doc(entry.key);
 
         transaction.update(exerciseRef, {
-          'currentWeight': entry.value,
+          'currentWeight': item.weight,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      for (final entry in latestSetByExerciseLibraryId.entries) {
+        final item = entry.value;
+
+        transaction.set(_exerciseStatsCollection.doc(entry.key), {
+          'exerciseLibraryId': item.exercise.exerciseLibraryId,
+          'exerciseName': item.exercise.name,
+          'lastUsedWeight': item.weight,
+          'lastWorkoutId': workout.id,
+          'lastWorkoutName': workout.name,
+          'lastWorkoutExerciseId': item.exercise.id,
+          'lastPerformedAt': Timestamp.fromDate(finishedAt),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
 
       if (planData != null) {

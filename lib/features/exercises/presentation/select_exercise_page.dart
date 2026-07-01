@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
+import '../../exercise_stats/data/user_exercise_stats_service.dart';
 import '../../workouts/data/workout_service.dart';
 import '../data/exercise_library_service.dart';
 import '../models/exercise.dart';
@@ -17,10 +18,22 @@ class SelectExercisePage extends StatelessWidget {
   });
 
   Future<void> _showConfigDialog(BuildContext context, Exercise exercise) async {
+    double? lastUsedWeight;
+
+    try {
+      lastUsedWeight = await UserExerciseStatsService().getLastUsedWeight(
+        exerciseLibraryId: exercise.id,
+      );
+    } catch (_) {
+      lastUsedWeight = null;
+    }
+
     final setsController = TextEditingController(text: '3');
     final repsController = TextEditingController(text: '8-10');
     final restController = TextEditingController(text: '90');
-    final weightController = TextEditingController(text: '0');
+    final weightController = TextEditingController(
+      text: _formatWeight(lastUsedWeight ?? 0),
+    );
 
     final service = WorkoutService();
 
@@ -59,6 +72,13 @@ class SelectExercisePage extends StatelessWidget {
                   decoration: const InputDecoration(labelText: 'Carga inicial'),
                   keyboardType: TextInputType.number,
                 ),
+                if (lastUsedWeight != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ultima carga registrada: ${_formatWeight(lastUsedWeight)} kg',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),
@@ -191,6 +211,12 @@ class SelectExercisePage extends StatelessWidget {
       parts.add(exercise.equipment.trim());
     }
 
-    return parts.join(' • ');
+    return parts.join(' - ');
+  }
+
+  String _formatWeight(double value) {
+    return value == value.truncateToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
   }
 }
