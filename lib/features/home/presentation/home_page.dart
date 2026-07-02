@@ -186,7 +186,6 @@ class _HomePageState extends State<HomePage> {
                                     child: _MetricCard(
                                       label: 'No mes',
                                       value: '${sessions.length}',
-                                      hint: 'treinos concluidos',
                                       accent: AppThemeColors.primary,
                                     ),
                                   ),
@@ -195,7 +194,6 @@ class _HomePageState extends State<HomePage> {
                                     child: _MetricCard(
                                       label: 'Meta',
                                       value: '$expectedDays',
-                                      hint: 'dias planejados',
                                       accent: AppThemeColors.secondary,
                                     ),
                                   ),
@@ -204,7 +202,6 @@ class _HomePageState extends State<HomePage> {
                                     child: _MetricCard(
                                       label: 'Ritmo',
                                       value: '$attendanceRate%',
-                                      hint: 'aderencia atual',
                                       accent: AppThemeColors.warning,
                                     ),
                                   ),
@@ -486,13 +483,11 @@ class _StatusPill extends StatelessWidget {
 class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
-  final String hint;
   final Color accent;
 
   const _MetricCard({
     required this.label,
     required this.value,
-    required this.hint,
     required this.accent,
   });
 
@@ -528,9 +523,8 @@ class _MetricCard extends StatelessWidget {
           Text(
             value,
             style: theme.textTheme.headlineSmall?.copyWith(color: accent),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          Text(hint, style: theme.textTheme.bodySmall),
         ],
       ),
     );
