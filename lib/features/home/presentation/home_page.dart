@@ -172,7 +172,7 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 16),
                           LayoutBuilder(
                             builder: (context, constraints) {
-                              final isCompact = constraints.maxWidth < 520;
+                              final isCompact = constraints.maxWidth < 320;
                               final itemWidth = isCompact
                                   ? (constraints.maxWidth - 12) / 2
                                   : (constraints.maxWidth - 24) / 3;
@@ -225,7 +225,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(height: 12),
                           const Wrap(
-                            spacing: 10,
+                            spacing: 5,
                             runSpacing: 10,
                             children: [
                               _LegendPill(
