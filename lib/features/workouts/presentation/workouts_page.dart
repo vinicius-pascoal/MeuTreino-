@@ -155,10 +155,6 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             children: [
-              _WorkoutsOverviewCard(
-                count: workouts.length,
-                onAutoBuild: _openAutoWorkoutPage,
-              ),
               const SizedBox(height: 20),
               if (workouts.isEmpty)
                 _EmptyWorkoutsCard(onAutoBuild: _openAutoWorkoutPage)
@@ -168,7 +164,8 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _WorkoutListCard(
                       workout: workout,
-                      onEdit: () => _createOrEditWorkoutDialog(workout: workout),
+                      onEdit: () =>
+                          _createOrEditWorkoutDialog(workout: workout),
                       onDelete: () => _deleteWorkout(workout),
                       onTap: () {
                         Navigator.of(context).push(
@@ -183,74 +180,6 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _WorkoutsOverviewCard extends StatelessWidget {
-  final int count;
-  final VoidCallback onAutoBuild;
-
-  const _WorkoutsOverviewCard({
-    required this.count,
-    required this.onAutoBuild,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final label = count == 1 ? '1 treino ativo' : '$count treinos ativos';
-
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
-            AppThemeColors.surface.withValues(alpha: 0.94),
-          ],
-        ),
-        border: Border.all(color: AppThemeColors.outlineStrong),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Organize sua base', style: theme.textTheme.labelMedium),
-          const SizedBox(height: 10),
-          Text('Treinos claros, ajustes rapidos.', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          Text(
-            'Monte, edite e revise a estrutura da sua semana com uma visao mais limpa.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppThemeColors.outline),
-                ),
-                child: Text(label, style: theme.textTheme.labelLarge),
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: onAutoBuild,
-                icon: const Icon(Icons.auto_awesome_rounded),
-                label: const Text('Automatizar'),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
