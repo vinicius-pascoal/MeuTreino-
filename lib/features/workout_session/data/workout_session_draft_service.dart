@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:home_widget/home_widget.dart';
 
+import '../../../core/models/rest_timer_value.dart';
 import '../../workouts/models/workout.dart';
 import '../models/completed_set_input.dart';
 
@@ -10,16 +11,19 @@ class WorkoutSessionDraft {
   final DateTime startedAt;
   final String? selectedExerciseId;
   final List<WorkoutSessionDraftSet> completedSets;
+  final WorkoutSessionRestDraft? restTimer;
 
   const WorkoutSessionDraft({
     required this.workoutId,
     required this.startedAt,
     required this.selectedExerciseId,
     required this.completedSets,
+    required this.restTimer,
   });
 
   factory WorkoutSessionDraft.fromJson(Map<String, dynamic> json) {
     final rawSets = json['completedSets'];
+    final rawRestTimer = json['restTimer'];
 
     return WorkoutSessionDraft(
       workoutId: json['workoutId'] as String? ?? '',
@@ -38,6 +42,11 @@ class WorkoutSessionDraft {
                 .where((item) => item.workoutExerciseId.isNotEmpty)
                 .toList()
           : const [],
+      restTimer: rawRestTimer is Map
+          ? WorkoutSessionRestDraft.fromJson(
+              Map<String, dynamic>.from(rawRestTimer),
+            )
+          : null,
     );
   }
 }
@@ -62,6 +71,42 @@ class WorkoutSessionDraftSet {
       weight: (json['weight'] as num?)?.toDouble() ?? 0,
       reps: (json['reps'] as num?)?.toInt() ?? 0,
     );
+  }
+}
+
+class WorkoutSessionRestDraft {
+  final String workoutExerciseId;
+  final int completedSetsCount;
+  final RestTimerValue timer;
+
+  const WorkoutSessionRestDraft({
+    required this.workoutExerciseId,
+    required this.completedSetsCount,
+    required this.timer,
+  });
+
+  factory WorkoutSessionRestDraft.fromJson(Map<String, dynamic> json) {
+    final rawTimer = json['timer'];
+
+    return WorkoutSessionRestDraft(
+      workoutExerciseId: json['workoutExerciseId'] as String? ?? '',
+      completedSetsCount: (json['completedSetsCount'] as num?)?.toInt() ?? 0,
+      timer: rawTimer is Map<String, dynamic>
+          ? RestTimerValue.fromJson(rawTimer)
+          : RestTimerValue.initial(
+              initialSeconds: (json['initialSeconds'] as num?)?.toInt() ?? 0,
+            ),
+    );
+  }
+
+  bool get shouldPersist => timer.isModified;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'workoutExerciseId': workoutExerciseId,
+      'completedSetsCount': completedSetsCount,
+      'timer': timer.toJson(),
+    };
   }
 }
 
@@ -102,8 +147,11 @@ class WorkoutSessionDraftService {
     required DateTime startedAt,
     required String? selectedExerciseId,
     required List<CompletedSetInput> completedSets,
+    WorkoutSessionRestDraft? restTimer,
   }) async {
-    if (completedSets.isEmpty) {
+    final restTimerToPersist = restTimer?.shouldPersist == true ? restTimer : null;
+
+    if (completedSets.isEmpty && restTimerToPersist == null) {
       return;
     }
 
@@ -124,6 +172,7 @@ class WorkoutSessionDraftService {
             },
           )
           .toList(),
+      if (restTimerToPersist != null) 'restTimer': restTimerToPersist.toJson(),
     });
 
     try {

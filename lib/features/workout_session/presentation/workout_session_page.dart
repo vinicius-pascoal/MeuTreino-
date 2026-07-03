@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/models/rest_timer_value.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../../../core/widgets/rest_timer.dart';
 import '../../home_widgets/data/app_home_widget_service.dart';
@@ -41,8 +42,10 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
 
   String? _selectedExerciseId;
   WorkoutSessionDraft? _pendingDraft;
+  WorkoutSessionRestDraft? _restTimerDraft;
   bool _draftLoaded = false;
   bool _draftApplied = false;
+  bool _draftPersisted = false;
   bool _sessionSaved = false;
   bool _saving = false;
 
@@ -79,6 +82,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
 
     setState(() {
       _pendingDraft = draft;
+      _draftPersisted = draft != null;
       _draftLoaded = true;
     });
   }
@@ -89,7 +93,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   ) {
     _draftApplied = true;
 
-    if (draft == null || draft.completedSets.isEmpty) {
+    if (draft == null) {
       return;
     }
 
@@ -99,6 +103,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
 
     _startedAt = draft.startedAt;
     _completedSets.clear();
+    _restTimerDraft = draft.restTimer;
 
     for (final item in draft.completedSets) {
       final exercise = exercisesById[item.workoutExerciseId];
@@ -132,7 +137,19 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   }
 
   Future<void> _saveDraft() async {
-    if (_sessionSaved || _completedSets.isEmpty) {
+    if (_sessionSaved) {
+      return;
+    }
+
+    final restTimerToPersist = _restTimerDraft?.shouldPersist == true
+        ? _restTimerDraft
+        : null;
+
+    if (_completedSets.isEmpty && restTimerToPersist == null) {
+      if (_draftPersisted) {
+        await _draftService.clearDraft(workoutId: widget.workout.id);
+        _draftPersisted = false;
+      }
       return;
     }
 
@@ -141,7 +158,9 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       startedAt: _startedAt,
       selectedExerciseId: _selectedExerciseId,
       completedSets: _completedSets,
+      restTimer: restTimerToPersist,
     );
+    _draftPersisted = true;
   }
 
   int _completedSetsCountFor(String exerciseId) {
@@ -193,6 +212,38 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       _selectedExerciseId = exercise.id;
       _loadExerciseFields(exercise);
     });
+    unawaited(_saveDraft());
+  }
+
+  RestTimerValue? _restTimerValueFor(WorkoutExercise exercise) {
+    final restTimerDraft = _restTimerDraft;
+    if (restTimerDraft == null) {
+      return null;
+    }
+
+    if (restTimerDraft.workoutExerciseId != exercise.id) {
+      return null;
+    }
+
+    if (restTimerDraft.completedSetsCount != _completedSetsCountFor(exercise.id)) {
+      return null;
+    }
+
+    return restTimerDraft.timer;
+  }
+
+  void _handleRestTimerChanged(
+    WorkoutExercise exercise,
+    RestTimerValue timerValue,
+  ) {
+    _restTimerDraft = timerValue.isModified
+        ? WorkoutSessionRestDraft(
+            workoutExerciseId: exercise.id,
+            completedSetsCount: _completedSetsCountFor(exercise.id),
+            timer: timerValue,
+          )
+        : null;
+
     unawaited(_saveDraft());
   }
 
@@ -276,6 +327,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       );
       await _homeWidgetService.syncFromAppState();
       await _draftService.clearDraft(workoutId: widget.workout.id);
+      _draftPersisted = false;
       _sessionSaved = true;
 
       if (!mounted) return;
@@ -659,6 +711,8 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
                     '${exercise.id}-${_completedSetsCountFor(exercise.id)}',
                   ),
                   initialSeconds: exercise.restSeconds,
+                  initialValue: _restTimerValueFor(exercise),
+                  onChanged: (value) => _handleRestTimerChanged(exercise, value),
                 ),
                 const SizedBox(height: 18),
                 Card(

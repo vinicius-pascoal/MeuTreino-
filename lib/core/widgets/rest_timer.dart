@@ -2,82 +2,183 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/rest_timer_value.dart';
+
 class RestTimer extends StatefulWidget {
   final int initialSeconds;
+  final RestTimerValue? initialValue;
+  final ValueChanged<RestTimerValue>? onChanged;
   final VoidCallback? onFinished;
 
-  const RestTimer({super.key, required this.initialSeconds, this.onFinished});
+  const RestTimer({
+    super.key,
+    required this.initialSeconds,
+    this.initialValue,
+    this.onChanged,
+    this.onFinished,
+  });
 
   @override
   State<RestTimer> createState() => _RestTimerState();
 }
 
-class _RestTimerState extends State<RestTimer> {
+class _RestTimerState extends State<RestTimer> with WidgetsBindingObserver {
   Timer? _timer;
+  late RestTimerValue _value;
   late int _remainingSeconds;
-  bool _running = false;
 
   @override
   void initState() {
     super.initState();
-    _remainingSeconds = widget.initialSeconds;
+    WidgetsBinding.instance.addObserver(this);
+    _restoreFromWidget(notifyIfNormalized: true);
   }
 
   @override
   void didUpdateWidget(covariant RestTimer oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.initialSeconds != widget.initialSeconds) {
-      _timer?.cancel();
-      _remainingSeconds = widget.initialSeconds;
-      _running = false;
+    if (oldWidget.initialSeconds != widget.initialSeconds ||
+        oldWidget.initialValue != widget.initialValue) {
+      _restoreFromWidget(notifyIfNormalized: true);
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }
 
-  void _start() {
-    if (_running) return;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshDisplay();
+    }
+  }
 
-    setState(() => _running = true);
+  void _restoreFromWidget({required bool notifyIfNormalized}) {
+    final now = DateTime.now();
+    final rawValue =
+        widget.initialValue ??
+        RestTimerValue.initial(initialSeconds: widget.initialSeconds);
+    final restoredValue = rawValue.normalized(
+      initialSeconds: widget.initialSeconds,
+      now: now,
+    );
+    final finishedWhileAway =
+        rawValue.isRunning &&
+        !restoredValue.isRunning &&
+        restoredValue.remainingSeconds == 0;
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds <= 1) {
-        timer.cancel();
+    _timer?.cancel();
+    _value = restoredValue;
+    _remainingSeconds = restoredValue.remainingAt(now);
+    _restartTickerIfNeeded();
 
-        setState(() {
-          _remainingSeconds = 0;
-          _running = false;
-        });
+    if (notifyIfNormalized && rawValue != restoredValue) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
 
-        widget.onFinished?.call();
-        return;
-      }
+        widget.onChanged?.call(restoredValue);
 
-      setState(() {
-        _remainingSeconds--;
+        if (finishedWhileAway) {
+          widget.onFinished?.call();
+        }
       });
+    }
+  }
+
+  void _start() {
+    if (_value.isRunning || _remainingSeconds <= 0) return;
+
+    final now = DateTime.now();
+    final nextValue = RestTimerValue(
+      initialSeconds: widget.initialSeconds,
+      remainingSeconds: _remainingSeconds,
+      endsAt: now.add(Duration(seconds: _remainingSeconds)),
+    ).normalized(initialSeconds: widget.initialSeconds, now: now);
+
+    setState(() {
+      _value = nextValue;
+      _remainingSeconds = nextValue.remainingAt(now);
     });
+
+    _restartTickerIfNeeded();
+    widget.onChanged?.call(nextValue);
   }
 
   void _pause() {
-    _timer?.cancel();
+    final now = DateTime.now();
+    final nextValue = RestTimerValue(
+      initialSeconds: widget.initialSeconds,
+      remainingSeconds: _value.remainingAt(now),
+      endsAt: null,
+    ).normalized(initialSeconds: widget.initialSeconds, now: now);
 
     setState(() {
-      _running = false;
+      _timer?.cancel();
+      _value = nextValue;
+      _remainingSeconds = nextValue.remainingSeconds;
     });
+
+    widget.onChanged?.call(nextValue);
   }
 
   void _reset() {
-    _timer?.cancel();
+    final nextValue = RestTimerValue.initial(initialSeconds: widget.initialSeconds);
 
     setState(() {
-      _remainingSeconds = widget.initialSeconds;
-      _running = false;
+      _timer?.cancel();
+      _value = nextValue;
+      _remainingSeconds = nextValue.remainingSeconds;
+    });
+
+    widget.onChanged?.call(nextValue);
+  }
+
+  void _restartTickerIfNeeded() {
+    _timer?.cancel();
+
+    if (!_value.isRunning) {
+      return;
+    }
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _refreshDisplay();
+    });
+  }
+
+  void _refreshDisplay() {
+    final now = DateTime.now();
+    final nextRemaining = _value.remainingAt(now);
+
+    if (_value.isRunning && nextRemaining == 0) {
+      final finishedValue = RestTimerValue(
+        initialSeconds: widget.initialSeconds,
+        remainingSeconds: 0,
+        endsAt: null,
+      );
+
+      _timer?.cancel();
+
+      setState(() {
+        _value = finishedValue;
+        _remainingSeconds = 0;
+      });
+
+      widget.onChanged?.call(finishedValue);
+      widget.onFinished?.call();
+      return;
+    }
+
+    if (nextRemaining == _remainingSeconds) {
+      return;
+    }
+
+    setState(() {
+      _remainingSeconds = nextRemaining;
     });
   }
 
@@ -106,9 +207,9 @@ class _RestTimerState extends State<RestTimer> {
               spacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: _running ? _pause : _start,
-                  icon: Icon(_running ? Icons.pause : Icons.play_arrow),
-                  label: Text(_running ? 'Pausar' : 'Iniciar'),
+                  onPressed: _value.isRunning ? _pause : _start,
+                  icon: Icon(_value.isRunning ? Icons.pause : Icons.play_arrow),
+                  label: Text(_value.isRunning ? 'Pausar' : 'Iniciar'),
                 ),
                 OutlinedButton.icon(
                   onPressed: _reset,
