@@ -33,7 +33,6 @@ class HistoryPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             children: [
-              _HistoryOverviewCard(totalSessions: sessions.length),
               const SizedBox(height: 20),
               if (sessions.isEmpty)
                 const _EmptyHistoryCard()
@@ -56,62 +55,6 @@ class HistoryPage extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _HistoryOverviewCard extends StatelessWidget {
-  final int totalSessions;
-
-  const _HistoryOverviewCard({required this.totalSessions});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final label = totalSessions == 1
-        ? '1 sessao registrada'
-        : '$totalSessions sessoes registradas';
-
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
-            AppThemeColors.surface.withValues(alpha: 0.94),
-          ],
-        ),
-        border: Border.all(color: AppThemeColors.outlineStrong),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Linha do tempo', style: theme.textTheme.labelMedium),
-          const SizedBox(height: 10),
-          Text(
-            'Tudo o que ja foi concluido.',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Revise rapidamente data, volume e densidade de cada treino finalizado.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: AppThemeColors.outline),
-            ),
-            child: Text(label, style: theme.textTheme.labelLarge),
-          ),
-        ],
       ),
     );
   }
@@ -164,10 +107,7 @@ class _HistorySessionCard extends StatelessWidget {
   final WorkoutSessionSummary session;
   final VoidCallback onTap;
 
-  const _HistorySessionCard({
-    required this.session,
-    required this.onTap,
-  });
+  const _HistorySessionCard({required this.session, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +142,10 @@ class _HistorySessionCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(session.workoutName, style: theme.textTheme.titleMedium),
+                    Text(
+                      session.workoutName,
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 6),
                     Text(date, style: theme.textTheme.bodySmall),
                     const SizedBox(height: 12),
@@ -214,8 +157,7 @@ class _HistorySessionCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _SessionMetaChip(
-                          label:
-                              '${session.totalVolume.toStringAsFixed(0)} kg',
+                          label: '${session.totalVolume.toStringAsFixed(0)} kg',
                           tone: AppThemeColors.warning,
                         ),
                       ],
@@ -240,10 +182,7 @@ class _SessionMetaChip extends StatelessWidget {
   final String label;
   final Color tone;
 
-  const _SessionMetaChip({
-    required this.label,
-    required this.tone,
-  });
+  const _SessionMetaChip({required this.label, required this.tone});
 
   @override
   Widget build(BuildContext context) {
