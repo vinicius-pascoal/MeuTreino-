@@ -59,27 +59,23 @@ class AppBottomNavBar extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 6),
                         Text(
                           'Mais opcoes',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          'Acesse automacoes, biblioteca e configuracoes rapidas.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 18),
                         _BottomSheetAction(
                           icon: Icons.auto_awesome_rounded,
                           title: 'Treino automatico',
-                          subtitle: 'Monte uma rotina inicial com poucos toques.',
+                          subtitle:
+                              'Monte uma rotina inicial com poucos toques.',
                           onTap: () {
                             Navigator.of(context).pop();
                             _openRootPage(context, const AutoWorkoutPage());
                           },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         _BottomSheetAction(
                           icon: Icons.photo_library_outlined,
                           title: 'Biblioteca',
@@ -89,7 +85,7 @@ class AppBottomNavBar extends StatelessWidget {
                             _openRootPage(context, const ExerciseLibraryPage());
                           },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         _BottomSheetAction(
                           icon: Icons.logout_rounded,
                           title: 'Sair da conta',
@@ -218,7 +214,7 @@ class _BottomSheetAction extends StatelessWidget {
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 10,
+            vertical: 6,
           ),
           leading: Container(
             width: 46,
