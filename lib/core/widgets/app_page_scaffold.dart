@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_theme.dart';
 import 'app_background.dart';
-import 'app_bottom_nav_bar.dart';
+
+const double _floatingActionButtonNavOffset = 92;
 
 class AppPageScaffold extends StatelessWidget {
   final String title;
@@ -16,7 +17,7 @@ class AppPageScaffold extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
-    required this.currentIndex,
+    this.currentIndex = 0,
     this.actions,
     this.floatingActionButton,
     this.bottomAction,
@@ -24,18 +25,26 @@ class AppPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final floatingActionButtonBottomPadding =
+        _floatingActionButtonNavOffset + (bottomAction != null ? 76 : 0);
+
     return Scaffold(
       extendBody: true,
       appBar: AppBar(title: Text(title), actions: actions),
-      floatingActionButton: floatingActionButton,
+      floatingActionButton: floatingActionButton == null
+          ? null
+          : Padding(
+              padding: EdgeInsets.only(
+                bottom: floatingActionButtonBottomPadding,
+              ),
+              child: floatingActionButton!,
+            ),
       body: AppBackground(
         child: SafeArea(bottom: false, child: body),
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (bottomAction != null)
-            SafeArea(
+      bottomNavigationBar: bottomAction == null
+          ? null
+          : SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -49,9 +58,6 @@ class AppPageScaffold extends StatelessWidget {
                 ),
               ),
             ),
-          AppBottomNavBar(currentIndex: currentIndex),
-        ],
-      ),
     );
   }
 }

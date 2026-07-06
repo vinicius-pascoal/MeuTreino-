@@ -3,12 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../app/app_theme.dart';
 import '../../../core/utils/date_key.dart';
 import '../../../core/widgets/app_background.dart';
-import '../../../core/widgets/app_bottom_nav_bar.dart';
-import '../../../core/widgets/app_section_header.dart';
 import '../../auth/data/auth_service.dart';
-import '../../exercises/presentation/exercise_library_page.dart';
 import '../../home_widgets/data/app_home_widget_service.dart';
-import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../../workout_plan/data/workout_plan_service.dart';
 import '../../workout_plan/models/workout_plan.dart';
 import '../../workout_plan/presentation/workout_plan_page.dart';
@@ -17,7 +13,6 @@ import '../../workout_session/models/workout_session_summary.dart';
 import '../../workout_session/presentation/workout_session_page.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
-import '../../workouts/presentation/workouts_page.dart';
 import 'widgets/attendance_calendar.dart';
 
 class HomePage extends StatefulWidget {
@@ -243,7 +238,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  bottomNavigationBar: const AppBottomNavBar(currentIndex: 0),
                 );
               },
             );

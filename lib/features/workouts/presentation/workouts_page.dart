@@ -127,18 +127,6 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
     return AppPageScaffold(
       title: 'Treinos',
       currentIndex: 1,
-      actions: [
-        IconButton(
-          tooltip: 'Montar treino automatico',
-          onPressed: _openAutoWorkoutPage,
-          icon: const Icon(Icons.auto_awesome_rounded),
-        ),
-      ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _createOrEditWorkoutDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo treino'),
-      ),
       body: StreamBuilder<List<Workout>>(
         stream: _service.watchWorkouts(),
         builder: (context, snapshot) {
@@ -156,6 +144,11 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
             children: [
               const SizedBox(height: 20),
+              _WorkoutActionsCard(
+                onCreateWorkout: () => _createOrEditWorkoutDialog(),
+                onAutoBuild: _openAutoWorkoutPage,
+              ),
+              const SizedBox(height: 16),
               if (workouts.isEmpty)
                 _EmptyWorkoutsCard(onAutoBuild: _openAutoWorkoutPage)
               else
@@ -180,6 +173,71 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _WorkoutActionsCard extends StatelessWidget {
+  final VoidCallback onCreateWorkout;
+  final VoidCallback onAutoBuild;
+
+  const _WorkoutActionsCard({
+    required this.onCreateWorkout,
+    required this.onAutoBuild,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
+            AppThemeColors.surface.withValues(alpha: 0.94),
+          ],
+        ),
+        border: Border.all(color: AppThemeColors.outlineStrong),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Monte sua area de treinos',
+            style: theme.textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Crie um treino do zero ou deixe o app montar uma base inicial para voce.',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onCreateWorkout,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Novo treino'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onAutoBuild,
+                  icon: const Icon(Icons.auto_awesome_rounded),
+                  label: const Text('Automatico'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

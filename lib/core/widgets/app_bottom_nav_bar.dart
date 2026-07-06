@@ -5,21 +5,46 @@ import 'package:flutter/material.dart';
 import '../../app/app_theme.dart';
 import '../../features/auth/data/auth_service.dart';
 import '../../features/exercises/presentation/exercise_library_page.dart';
-import '../../features/history/presentation/history_page.dart';
-import '../../features/home/presentation/home_page.dart';
-import '../../features/progress/presentation/progress_page.dart';
 import '../../features/workout_automation/presentation/auto_workout_page.dart';
-import '../../features/workouts/presentation/workouts_page.dart';
+
+const double _navIconSize = 20;
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
+  final ValueChanged<int> onItemSelected;
 
-  const AppBottomNavBar({super.key, required this.currentIndex});
+  const AppBottomNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onItemSelected,
+  });
 
-  Future<void> _openRootPage(BuildContext context, Widget page) async {
-    await Navigator.of(context).pushAndRemoveUntil(
+  static const _primaryDestinations = [
+    _NavDestinationData(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Inicio',
+    ),
+    _NavDestinationData(
+      icon: Icons.fitness_center_outlined,
+      activeIcon: Icons.fitness_center,
+      label: 'Treinos',
+    ),
+    _NavDestinationData(
+      icon: Icons.history_outlined,
+      activeIcon: Icons.history,
+      label: 'Historico',
+    ),
+    _NavDestinationData(
+      icon: Icons.show_chart_outlined,
+      activeIcon: Icons.show_chart,
+      label: 'Progresso',
+    ),
+  ];
+
+  Future<void> _openOverlayPage(BuildContext context, Widget page) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => page),
-      (route) => false,
     );
   }
 
@@ -28,7 +53,7 @@ class AppBottomNavBar extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       showDragHandle: false,
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           top: false,
           child: Padding(
@@ -64,15 +89,23 @@ class AppBottomNavBar extends StatelessWidget {
                           'Mais opcoes',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Atalhos que complementam a navegacao principal do app.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 10),
                         _BottomSheetAction(
                           icon: Icons.auto_awesome_rounded,
                           title: 'Treino automatico',
                           subtitle:
                               'Monte uma rotina inicial com poucos toques.',
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            _openRootPage(context, const AutoWorkoutPage());
+                          onTap: () async {
+                            Navigator.of(sheetContext).pop();
+                            await _openOverlayPage(
+                              context,
+                              const AutoWorkoutPage(),
+                            );
                           },
                         ),
                         const SizedBox(height: 6),
@@ -80,9 +113,12 @@ class AppBottomNavBar extends StatelessWidget {
                           icon: Icons.photo_library_outlined,
                           title: 'Biblioteca',
                           subtitle: 'Consulte exercicios e referencias locais.',
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            _openRootPage(context, const ExerciseLibraryPage());
+                          onTap: () async {
+                            Navigator.of(sheetContext).pop();
+                            await _openOverlayPage(
+                              context,
+                              const ExerciseLibraryPage(),
+                            );
                           },
                         ),
                         const SizedBox(height: 6),
@@ -91,7 +127,7 @@ class AppBottomNavBar extends StatelessWidget {
                           title: 'Sair da conta',
                           subtitle: 'Encerrar a sessao neste dispositivo.',
                           onTap: () async {
-                            Navigator.of(context).pop();
+                            Navigator.of(sheetContext).pop();
                             await AuthService().logout();
                           },
                         ),
@@ -108,80 +144,270 @@ class AppBottomNavBar extends StatelessWidget {
   }
 
   Future<void> _handleTap(BuildContext context, int index) async {
-    if (index == 0) {
-      await _openRootPage(context, const HomePage());
+    if (index == _primaryDestinations.length) {
+      await _showMoreSheet(context);
       return;
     }
 
-    if (index == 1) {
-      await _openRootPage(context, const WorkoutsPage());
-      return;
-    }
+    if (index == currentIndex) return;
 
-    if (index == 2) {
-      await _openRootPage(context, const HistoryPage());
-      return;
-    }
-
-    if (index == 3) {
-      await _openRootPage(context, const ProgressPage());
-      return;
-    }
-
-    await _showMoreSheet(context);
+    onItemSelected(index);
   }
 
   @override
   Widget build(BuildContext context) {
+    const gap = 6.0;
+
     return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      minimum: const EdgeInsets.fromLTRB(14, 0, 14, 16),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(34),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
           child: Container(
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppThemeColors.surface.withValues(alpha: 0.78),
-              borderRadius: BorderRadius.circular(30),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppThemeColors.surfaceHigh.withValues(alpha: 0.94),
+                  AppThemeColors.surface.withValues(alpha: 0.88),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(34),
               border: Border.all(color: AppThemeColors.outlineStrong),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 22,
-                  offset: const Offset(0, 14),
+                  blurRadius: 28,
+                  offset: const Offset(0, 16),
                 ),
               ],
             ),
-            child: NavigationBar(
-              selectedIndex: currentIndex,
-              onDestinationSelected: (index) => _handleTap(context, index),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Inicio',
+            child: Row(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final slotWidth =
+                          (constraints.maxWidth -
+                              ((_primaryDestinations.length - 1) * gap)) /
+                          _primaryDestinations.length;
+                      final highlightLeft =
+                          currentIndex * (slotWidth + gap);
+
+                      return SizedBox(
+                        height: 76,
+                        child: Stack(
+                          children: [
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 360),
+                              curve: Curves.easeOutCubic,
+                              left: highlightLeft,
+                              top: 0,
+                              width: slotWidth,
+                              height: 76,
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(24),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        AppThemeColors.primary.withValues(
+                                          alpha: 0.24,
+                                        ),
+                                        AppThemeColors.secondary.withValues(
+                                          alpha: 0.14,
+                                        ),
+                                      ],
+                                    ),
+                                    border: Border.all(
+                                      color: AppThemeColors.primary.withValues(
+                                        alpha: 0.24,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Row(
+                              children: List.generate(
+                                _primaryDestinations.length,
+                                (index) {
+                                  final item = _primaryDestinations[index];
+
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        right: index ==
+                                                _primaryDestinations.length - 1
+                                            ? 0
+                                            : gap,
+                                      ),
+                                      child: _NavItem(
+                                        data: item,
+                                        selected: currentIndex == index,
+                                        onTap: () => _handleTap(context, index),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.fitness_center_outlined),
-                  selectedIcon: Icon(Icons.fitness_center),
-                  label: 'Treinos',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.history_outlined),
-                  selectedIcon: Icon(Icons.history),
-                  label: 'Historico',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.show_chart_outlined),
-                  selectedIcon: Icon(Icons.show_chart),
-                  label: 'Progresso',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.grid_view_rounded),
-                  selectedIcon: Icon(Icons.grid_view_rounded),
-                  label: 'Mais',
+                const SizedBox(width: 8),
+                _MoreButton(
+                  onTap: () => _handleTap(context, _primaryDestinations.length),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavDestinationData {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+
+  const _NavDestinationData({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+}
+
+class _NavItem extends StatelessWidget {
+  final _NavDestinationData data;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.data,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+      fontSize: 10,
+      height: 1,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+      color: selected ? Colors.white : AppThemeColors.textMuted,
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutBack,
+          scale: selected ? 1 : 0.98,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppThemeColors.primary.withValues(alpha: 0.18)
+                        : Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: selected
+                          ? AppThemeColors.primary.withValues(alpha: 0.16)
+                          : Colors.white.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  child: Icon(
+                    selected ? data.activeIcon : data.icon,
+                    color: selected
+                        ? AppThemeColors.primaryStrong
+                        : AppThemeColors.textMuted,
+                    size: _navIconSize,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  data.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                  style: labelStyle,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _MoreButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 62,
+      height: 76,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(
+                    Icons.grid_view_rounded,
+                    color: AppThemeColors.textMuted,
+                    size: _navIconSize,
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Mais',
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1,
+                      fontWeight: FontWeight.w600,
+                      color: AppThemeColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

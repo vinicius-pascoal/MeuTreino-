@@ -181,6 +181,16 @@ class AppTheme {
         }),
         height: 78,
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: AppPageTransitionsBuilder(),
+          TargetPlatform.iOS: AppPageTransitionsBuilder(),
+          TargetPlatform.linux: AppPageTransitionsBuilder(),
+          TargetPlatform.macOS: AppPageTransitionsBuilder(),
+          TargetPlatform.windows: AppPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: AppPageTransitionsBuilder(),
+        },
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppThemeColors.primary,
@@ -277,6 +287,55 @@ class AppTheme {
         ),
       ),
       dividerColor: AppThemeColors.outline,
+    );
+  }
+}
+
+class AppPageTransitionsBuilder extends PageTransitionsBuilder {
+  const AppPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final entrance = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final fade = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0, 0.85, curve: Curves.easeOut),
+      reverseCurve: const Interval(0, 1, curve: Curves.easeIn),
+    );
+    final exit = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.08, 0),
+          end: Offset.zero,
+        ).animate(entrance),
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: Offset.zero,
+            end: const Offset(-0.03, 0),
+          ).animate(exit),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.985, end: 1).animate(entrance),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
