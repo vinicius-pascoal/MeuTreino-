@@ -22,18 +22,48 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with AutomaticKeepAliveClientMixin<HomePage> {
   final _authService = AuthService();
   final _workoutService = WorkoutService();
   final _planService = WorkoutPlanService();
   final _sessionService = WorkoutSessionService();
   final _homeWidgetService = AppHomeWidgetService();
+  late final Stream<List<Workout>> _workoutsStream;
+  late final Stream<WorkoutPlan?> _planStream;
+  late Stream<List<WorkoutSessionSummary>> _sessionsStream;
+  final Map<String, List<WorkoutSessionSummary>> _sessionCacheByMonth = {};
 
-  DateTime _focusedDay = DateTime.now();
+  DateTime _visibleMonth = _monthAnchor(DateTime.now());
   String? _lastWidgetPayload;
+
+  static DateTime _monthAnchor(DateTime date) {
+    return DateTime(date.year, date.month, 1);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _workoutsStream = _workoutService.watchWorkouts();
+    _planStream = _planService.watchPlan();
+    _sessionsStream = _buildSessionsStream(_visibleMonth);
+  }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Future<void> _logout() async {
     await _authService.logout();
+  }
+
+  Stream<List<WorkoutSessionSummary>> _buildSessionsStream(DateTime date) {
+    final monthStart = _monthAnchor(date);
+    final monthEnd = DateTime(date.year, date.month + 1, 0);
+
+    return _sessionService.watchSessionsBetween(
+      start: monthStart,
+      end: monthEnd,
+    );
   }
 
   Workout? _findCurrentWorkout({
@@ -53,10 +83,23 @@ class _HomePageState extends State<HomePage> {
     return null;
   }
 
-  DateTime get _monthStart => DateTime(_focusedDay.year, _focusedDay.month, 1);
+  String _monthCacheKey(DateTime date) => '${date.year}-${date.month}';
+
+  DateTime get _monthStart =>
+      DateTime(_visibleMonth.year, _visibleMonth.month, 1);
 
   DateTime get _monthEnd =>
-      DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+      DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0);
+
+  DateTime? _planTrackingStart(WorkoutPlan? plan) {
+    final currentPlan = plan;
+
+    if (currentPlan == null) return null;
+
+    return currentPlan.trackingStartedAt ??
+        currentPlan.createdAt ??
+        currentPlan.updatedAt;
+  }
 
   int _countExpectedDaysInMonth(WorkoutPlan? plan) {
     final currentPlan = plan;
@@ -64,8 +107,26 @@ class _HomePageState extends State<HomePage> {
       return 0;
     }
 
-    var total = 0;
+    final trackingStart = _planTrackingStart(currentPlan);
     var cursor = _monthStart;
+
+    if (trackingStart != null) {
+      final normalizedTrackingStart = DateTime(
+        trackingStart.year,
+        trackingStart.month,
+        trackingStart.day,
+      );
+
+      if (normalizedTrackingStart.isAfter(_monthEnd)) {
+        return 0;
+      }
+
+      if (normalizedTrackingStart.isAfter(cursor)) {
+        cursor = normalizedTrackingStart;
+      }
+    }
+
+    var total = 0;
 
     while (!cursor.isAfter(_monthEnd)) {
       if (currentPlan.trainingWeekDays.contains(cursor.weekday)) {
@@ -107,13 +168,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return StreamBuilder<List<Workout>>(
-      stream: _workoutService.watchWorkouts(),
+      stream: _workoutsStream,
       builder: (context, workoutsSnapshot) {
-        final workouts = workoutsSnapshot.data ?? [];
+        final workouts = workoutsSnapshot.data ?? const <Workout>[];
 
         return StreamBuilder<WorkoutPlan?>(
-          stream: _planService.watchPlan(),
+          stream: _planStream,
           builder: (context, planSnapshot) {
             final plan = planSnapshot.data;
             final currentWorkout = _findCurrentWorkout(
@@ -122,16 +185,25 @@ class _HomePageState extends State<HomePage> {
             );
 
             return StreamBuilder<List<WorkoutSessionSummary>>(
-              stream: _sessionService.watchSessionsBetween(
-                start: _monthStart,
-                end: _monthEnd,
-              ),
+              key: ValueKey(_monthCacheKey(_visibleMonth)),
+              stream: _sessionsStream,
               builder: (context, sessionsSnapshot) {
-                final sessions = sessionsSnapshot.data ?? [];
+                final currentMonthKey = _monthCacheKey(_visibleMonth);
+                if (sessionsSnapshot.hasData) {
+                  _sessionCacheByMonth[currentMonthKey] = sessionsSnapshot.data!;
+                }
+                final sessions =
+                    sessionsSnapshot.data ??
+                    _sessionCacheByMonth[currentMonthKey] ??
+                    const <WorkoutSessionSummary>[];
                 final todayKey = DateKey.fromDate(DateTime.now());
                 final trainedToday = sessions.any(
                   (session) => session.workoutDateKey == todayKey,
                 );
+                final completedDateKeys = sessions
+                    .map((session) => session.workoutDateKey)
+                    .toSet();
+                final trackingStartDate = _planTrackingStart(plan);
                 _syncHomeWidget(
                   currentWorkout: currentWorkout,
                   trainedToday: trainedToday,
@@ -206,12 +278,32 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(height: 28),
                           AttendanceCalendar(
-                            focusedDay: _focusedDay,
-                            sessions: sessions,
-                            plan: plan,
-                            onPageChanged: (focusedDay) {
+                            visibleMonth: _visibleMonth,
+                            completedDateKeys: completedDateKeys,
+                            expectedWeekDays:
+                                plan?.trainingWeekDays.toSet() ??
+                                const <int>{},
+                            trackingStartDate: trackingStartDate,
+                            isMonthDataReady:
+                                planSnapshot.connectionState !=
+                                    ConnectionState.waiting &&
+                                (sessionsSnapshot.hasData ||
+                                    _sessionCacheByMonth.containsKey(
+                                      currentMonthKey,
+                                    )),
+                            onMonthChanged: (nextMonth) {
+                              final nextVisibleMonth = _monthAnchor(nextMonth);
+                              final monthChanged =
+                                  nextVisibleMonth.year != _visibleMonth.year ||
+                                  nextVisibleMonth.month != _visibleMonth.month;
+
                               setState(() {
-                                _focusedDay = focusedDay;
+                                _visibleMonth = nextVisibleMonth;
+                                if (monthChanged) {
+                                  _sessionsStream = _buildSessionsStream(
+                                    nextVisibleMonth,
+                                  );
+                                }
                               });
                             },
                           ),

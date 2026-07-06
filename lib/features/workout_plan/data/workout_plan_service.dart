@@ -46,10 +46,22 @@ class WorkoutPlanService {
     required List<String> sequenceWorkoutIds,
     required List<int> trainingWeekDays,
   }) async {
+    final existingDoc = await planRef.get();
+    final existingData = existingDoc.data() ?? const <String, dynamic>{};
+
     await planRef.set({
       'sequenceWorkoutIds': sequenceWorkoutIds,
       'currentWorkoutIndex': 0,
       'trainingWeekDays': trainingWeekDays,
+      'trackingStartedAt':
+          existingData['trackingStartedAt'] ??
+          existingData['createdAt'] ??
+          existingData['updatedAt'] ??
+          FieldValue.serverTimestamp(),
+      'createdAt':
+          existingData['createdAt'] ??
+          existingData['updatedAt'] ??
+          FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

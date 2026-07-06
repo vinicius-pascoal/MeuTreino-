@@ -4,6 +4,7 @@ import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
 import '../data/workout_plan_service.dart';
+import '../models/workout_plan.dart';
 
 class WorkoutPlanPage extends StatefulWidget {
   const WorkoutPlanPage({super.key});
@@ -29,7 +30,23 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
   }
 
   Future<void> _loadWorkouts() async {
-    final workouts = await _workoutService.getWorkoutsOnce();
+    final results = await Future.wait([
+      _workoutService.getWorkoutsOnce(),
+      _planService.getPlanOnce(),
+    ]);
+    final workouts = results[0] as List<Workout>;
+    final existingPlan = results[1] as WorkoutPlan?;
+
+    _selectedWorkoutIds
+      ..clear()
+      ..addAll(existingPlan?.sequenceWorkoutIds ?? const <String>[]);
+    _selectedWeekDays
+      ..clear()
+      ..addAll(
+        existingPlan?.trainingWeekDays.isNotEmpty == true
+            ? existingPlan!.trainingWeekDays
+            : const [1, 2, 3, 4, 5],
+      );
 
     setState(() {
       _workouts = workouts;

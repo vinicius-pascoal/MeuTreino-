@@ -22,7 +22,7 @@ class AuthGate extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
-          return const AppShell();
+          return AppShell(key: ValueKey(snapshot.data!.uid));
         }
 
         return const LoginPage();
