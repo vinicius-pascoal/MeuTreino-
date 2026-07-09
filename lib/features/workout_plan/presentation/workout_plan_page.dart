@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/app_page_scaffold.dart';
+import '../../home_widgets/data/app_home_widget_service.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
 import '../data/workout_plan_service.dart';
@@ -16,11 +17,13 @@ class WorkoutPlanPage extends StatefulWidget {
 class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
   final _workoutService = WorkoutService();
   final _planService = WorkoutPlanService();
+  final _homeWidgetService = AppHomeWidgetService();
 
   final List<String> _selectedWorkoutIds = [];
   final List<int> _selectedWeekDays = [1, 2, 3, 4, 5];
 
   bool _loading = true;
+  bool _saving = false;
   List<Workout> _workouts = [];
 
   @override
@@ -71,18 +74,32 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
       return;
     }
 
-    await _planService.savePlan(
-      sequenceWorkoutIds: _selectedWorkoutIds,
-      trainingWeekDays: _selectedWeekDays,
-    );
+    setState(() => _saving = true);
 
-    if (!mounted) return;
+    try {
+      await _planService.savePlan(
+        sequenceWorkoutIds: _selectedWorkoutIds,
+        trainingWeekDays: _selectedWeekDays,
+      );
+      await _homeWidgetService.syncFromAppState();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Plano salvo com sucesso.')));
+      if (!mounted) return;
 
-    Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Treino semanal salvo com sucesso.')),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar treino semanal: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   void _toggleWorkout(String workoutId) {
@@ -134,26 +151,26 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
     }
 
     return AppPageScaffold(
-      title: 'Configurar sequencia',
+      title: 'Editar treino semanal',
       currentIndex: 1,
       bottomAction: SizedBox(
         height: 52,
         child: FilledButton.icon(
-          onPressed: _savePlan,
+          onPressed: _saving ? null : _savePlan,
           icon: const Icon(Icons.save),
-          label: const Text('Salvar sequencia'),
+          label: Text(_saving ? 'Salvando...' : 'Salvar treino semanal'),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
         children: [
           const Text(
-            'Selecione os treinos na ordem da sequencia.',
+            'Monte a ordem da sua semana.',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Exemplo: marque Treino A, depois Treino B, depois Treino C.',
+            'Escolha a sequencia dos treinos e os dias esperados para manter a rotina organizada.',
             style: TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 16),
@@ -162,7 +179,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Voce ainda nao criou treinos. Crie o Treino A, B e C antes de configurar a sequencia.',
+                  'Voce ainda nao criou treinos. Crie o Treino A, B e C antes de montar sua semana.',
                 ),
               ),
             ),
@@ -178,7 +195,9 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
                 onChanged: (_) => _toggleWorkout(workout.id),
                 title: Text(workout.name),
                 subtitle: Text(
-                  selected ? 'Ordem na sequencia: $order' : workout.description,
+                  selected
+                      ? 'Ordem na semana: $order'
+                      : workout.description,
                 ),
               ),
             );

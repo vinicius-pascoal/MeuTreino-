@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage>
 
   DateTime _visibleMonth = _monthAnchor(DateTime.now());
   String? _lastWidgetPayload;
+  bool _skippingWorkout = false;
 
   static DateTime _monthAnchor(DateTime date) {
     return DateTime(date.year, date.month, 1);
@@ -148,6 +149,73 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  Future<void> _skipWorkout(Workout workout) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Pular treino de hoje?'),
+          content: Text(
+            'O ${workout.name} sera removido da vez atual e o proximo treino da sequencia passara a aparecer na home sem registrar treino concluido hoje.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Pular treino'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _skippingWorkout = true);
+
+    try {
+      final advanced = await _planService.advanceToNextWorkout();
+
+      if (!mounted) return;
+
+      if (!advanced) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nao foi possivel pular o treino porque a sequencia semanal ainda nao esta pronta.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      await _homeWidgetService.syncFromAppState();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Treino pulado. Se houver outro treino na sequencia, ele ja aparece na home.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao pular treino: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _skippingWorkout = false);
+      }
+    }
+  }
+
   void _syncHomeWidget({
     required Workout? currentWorkout,
     required bool trainedToday,
@@ -204,6 +272,11 @@ class _HomePageState extends State<HomePage>
                     .map((session) => session.workoutDateKey)
                     .toSet();
                 final trackingStartDate = _planTrackingStart(plan);
+                final canSkipWorkout =
+                    currentWorkout != null &&
+                    !trainedToday &&
+                    plan != null &&
+                    plan.sequenceWorkoutIds.length > 1;
                 _syncHomeWidget(
                   currentWorkout: currentWorkout,
                   trainedToday: trainedToday,
@@ -230,11 +303,18 @@ class _HomePageState extends State<HomePage>
                           _TodayWorkoutCard(
                             workout: currentWorkout,
                             trainedToday: trainedToday,
+                            isSkippingWorkout: _skippingWorkout,
+                            showSkipAction: canSkipWorkout,
                             onConfigure: () =>
                                 _openPage(const WorkoutPlanPage()),
                             onStart: currentWorkout == null
                                 ? null
-                                : () => _startWorkout(currentWorkout),
+                                : _skippingWorkout
+                                ? null
+                                : () => _startWorkout(currentWorkout!),
+                            onSkip: canSkipWorkout && !_skippingWorkout
+                                ? () => _skipWorkout(currentWorkout!)
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           LayoutBuilder(
@@ -393,14 +473,20 @@ class _HomeTopBar extends StatelessWidget {
 class _TodayWorkoutCard extends StatelessWidget {
   final Workout? workout;
   final bool trainedToday;
+  final bool isSkippingWorkout;
+  final bool showSkipAction;
   final VoidCallback onConfigure;
   final VoidCallback? onStart;
+  final VoidCallback? onSkip;
 
   const _TodayWorkoutCard({
     required this.workout,
     required this.trainedToday,
+    required this.isSkippingWorkout,
+    required this.showSkipAction,
     required this.onConfigure,
     required this.onStart,
+    required this.onSkip,
   });
 
   @override
@@ -453,8 +539,8 @@ class _TodayWorkoutCard extends StatelessWidget {
                   const SizedBox(height: 18),
                   FilledButton.icon(
                     onPressed: onConfigure,
-                    icon: const Icon(Icons.route_rounded),
-                    label: const Text('Configurar sequencia'),
+                    icon: const Icon(Icons.calendar_view_week_rounded),
+                    label: const Text('Configurar treino semanal'),
                   ),
                 ],
               )
@@ -524,13 +610,30 @@ class _TodayWorkoutCard extends StatelessWidget {
                       ),
                     )
                   else
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: onStart,
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: const Text('Iniciar treino'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: onStart,
+                            icon: const Icon(Icons.play_arrow_rounded),
+                            label: const Text('Iniciar treino'),
+                          ),
+                        ),
+                        if (showSkipAction) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: onSkip,
+                              icon: const Icon(Icons.skip_next_rounded),
+                              label: Text(
+                                isSkippingWorkout
+                                    ? 'Pulando...'
+                                    : 'Pular treino',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                 ],
               ),

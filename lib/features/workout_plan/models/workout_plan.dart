@@ -17,18 +17,39 @@ class WorkoutPlan {
     required this.updatedAt,
   });
 
+  int get safeCurrentWorkoutIndex {
+    if (sequenceWorkoutIds.isEmpty) return 0;
+    return currentWorkoutIndex % sequenceWorkoutIds.length;
+  }
+
   String? get currentWorkoutId {
     if (sequenceWorkoutIds.isEmpty) return null;
 
-    final safeIndex = currentWorkoutIndex % sequenceWorkoutIds.length;
-    return sequenceWorkoutIds[safeIndex];
+    return sequenceWorkoutIds[safeCurrentWorkoutIndex];
+  }
+
+  int? get nextWorkoutIndex {
+    if (sequenceWorkoutIds.isEmpty) return null;
+
+    return (safeCurrentWorkoutIndex + 1) % sequenceWorkoutIds.length;
+  }
+
+  int indexForWorkoutId(String? workoutId) {
+    if (workoutId == null || sequenceWorkoutIds.isEmpty) {
+      return 0;
+    }
+
+    final index = sequenceWorkoutIds.indexOf(workoutId);
+    return index >= 0 ? index : 0;
   }
 
   factory WorkoutPlan.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data() ?? {};
+    return WorkoutPlan.fromMap(doc.data() ?? const <String, dynamic>{});
+  }
 
+  factory WorkoutPlan.fromMap(Map<String, dynamic> data) {
     return WorkoutPlan(
       sequenceWorkoutIds: List<String>.from(data['sequenceWorkoutIds'] ?? []),
       currentWorkoutIndex: data['currentWorkoutIndex'] ?? 0,

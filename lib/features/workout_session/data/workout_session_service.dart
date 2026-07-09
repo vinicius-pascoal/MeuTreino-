@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/utils/date_key.dart';
+import '../../workout_plan/models/workout_plan.dart';
 import '../../workouts/models/workout.dart';
 import '../models/completed_set_input.dart';
 import '../models/performed_set.dart';
@@ -224,17 +225,12 @@ class WorkoutSessionService {
       }
 
       if (planData != null) {
-        final sequenceWorkoutIds = List<String>.from(
-          planData['sequenceWorkoutIds'] ?? [],
-        );
-        final currentWorkoutIndex = planData['currentWorkoutIndex'] ?? 0;
+        final plan = WorkoutPlan.fromMap(planData);
+        final nextWorkoutIndex = plan.nextWorkoutIndex;
 
-        if (sequenceWorkoutIds.isNotEmpty) {
-          final nextIndex =
-              (currentWorkoutIndex + 1) % sequenceWorkoutIds.length;
-
+        if (nextWorkoutIndex != null) {
           transaction.update(_planRef, {
-            'currentWorkoutIndex': nextIndex,
+            'currentWorkoutIndex': nextWorkoutIndex,
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }

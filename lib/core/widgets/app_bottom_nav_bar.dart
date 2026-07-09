@@ -6,6 +6,7 @@ import '../../app/app_theme.dart';
 import '../../features/auth/data/auth_service.dart';
 import '../../features/exercises/presentation/exercise_library_page.dart';
 import '../../features/workout_automation/presentation/auto_workout_page.dart';
+import '../../features/workout_plan/presentation/workout_plan_page.dart';
 
 const double _navIconSize = 20;
 
@@ -49,89 +50,110 @@ class AppBottomNavBar extends StatelessWidget {
   }
 
   Future<void> _showMoreSheet(BuildContext context) async {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       showDragHandle: false,
       builder: (sheetContext) {
         return SafeArea(
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppThemeColors.surface.withValues(alpha: 0.94),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: AppThemeColors.outlineStrong),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 42,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(999),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: screenHeight * 0.82),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppThemeColors.surface.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: AppThemeColors.outlineStrong),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 42,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Mais opcoes',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Atalhos que complementam a navegacao principal do app.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 10),
-                        _BottomSheetAction(
-                          icon: Icons.auto_awesome_rounded,
-                          title: 'Treino automatico',
-                          subtitle:
-                              'Monte uma rotina inicial com poucos toques.',
-                          onTap: () async {
-                            Navigator.of(sheetContext).pop();
-                            await _openOverlayPage(
-                              context,
-                              const AutoWorkoutPage(),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 6),
-                        _BottomSheetAction(
-                          icon: Icons.photo_library_outlined,
-                          title: 'Biblioteca',
-                          subtitle: 'Consulte exercicios e referencias locais.',
-                          onTap: () async {
-                            Navigator.of(sheetContext).pop();
-                            await _openOverlayPage(
-                              context,
-                              const ExerciseLibraryPage(),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 6),
-                        _BottomSheetAction(
-                          icon: Icons.logout_rounded,
-                          title: 'Sair da conta',
-                          subtitle: 'Encerrar a sessao neste dispositivo.',
-                          onTap: () async {
-                            Navigator.of(sheetContext).pop();
-                            await AuthService().logout();
-                          },
-                        ),
-                      ],
+                          const SizedBox(height: 6),
+                          Text(
+                            'Mais opcoes',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Atalhos que complementam a navegacao principal do app.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 10),
+                          _BottomSheetAction(
+                            icon: Icons.calendar_view_week_rounded,
+                            title: 'Treino semanal',
+                            subtitle:
+                                'Edite a sequencia e os dias esperados da rotina.',
+                            onTap: () async {
+                              Navigator.of(sheetContext).pop();
+                              await _openOverlayPage(
+                                context,
+                                const WorkoutPlanPage(),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          _BottomSheetAction(
+                            icon: Icons.auto_awesome_rounded,
+                            title: 'Treino automatico',
+                            subtitle:
+                                'Monte uma rotina inicial com poucos toques.',
+                            onTap: () async {
+                              Navigator.of(sheetContext).pop();
+                              await _openOverlayPage(
+                                context,
+                                const AutoWorkoutPage(),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          _BottomSheetAction(
+                            icon: Icons.photo_library_outlined,
+                            title: 'Biblioteca',
+                            subtitle:
+                                'Consulte exercicios e referencias locais.',
+                            onTap: () async {
+                              Navigator.of(sheetContext).pop();
+                              await _openOverlayPage(
+                                context,
+                                const ExerciseLibraryPage(),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          _BottomSheetAction(
+                            icon: Icons.logout_rounded,
+                            title: 'Sair da conta',
+                            subtitle: 'Encerrar a sessao neste dispositivo.',
+                            onTap: () async {
+                              Navigator.of(sheetContext).pop();
+                              await AuthService().logout();
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

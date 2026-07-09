@@ -539,7 +539,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
-                        height: 144,
+                        height: 156,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: exercises.length,
@@ -558,7 +558,12 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
                                 onTap: () => _selectExercise(item),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 180),
-                                  padding: const EdgeInsets.all(14),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    14,
+                                    12,
+                                    14,
+                                    12,
+                                  ),
                                   decoration: BoxDecoration(
                                     gradient: isSelected
                                         ? const LinearGradient(
@@ -630,6 +635,8 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
                                       const SizedBox(height: 8),
                                       Text(
                                         _exerciseSubtitle(item),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: isSelected
