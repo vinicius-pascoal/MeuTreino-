@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app_theme.dart';
+import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/utils/date_key.dart';
 import '../../../core/widgets/app_background.dart';
 import '../../auth/data/auth_service.dart';
@@ -29,6 +32,7 @@ class _HomePageState extends State<HomePage>
   final _planService = WorkoutPlanService();
   final _sessionService = WorkoutSessionService();
   final _homeWidgetService = AppHomeWidgetService();
+  final _navigationStateService = AppNavigationStateService();
   late final Stream<List<Workout>> _workoutsStream;
   late final Stream<WorkoutPlan?> _planStream;
   late Stream<List<WorkoutSessionSummary>> _sessionsStream;
@@ -139,13 +143,24 @@ class _HomePageState extends State<HomePage>
     return total;
   }
 
-  Future<void> _openPage(Widget page) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  Future<void> _openPage({
+    required Widget page,
+    required PersistedPageState pageState,
+  }) async {
+    await _navigationStateService.pushTrackedPage(
+      context: context,
+      pageState: pageState,
+      builder: (_) => page,
+    );
   }
 
   void _startWorkout(Workout workout) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => WorkoutSessionPage(workout: workout)),
+    unawaited(
+      _navigationStateService.pushTrackedPage(
+        context: context,
+        pageState: PersistedPageState.workoutSession(workoutId: workout.id),
+        builder: (_) => WorkoutSessionPage(workout: workout),
+      ),
     );
   }
 
@@ -306,7 +321,11 @@ class _HomePageState extends State<HomePage>
                             isSkippingWorkout: _skippingWorkout,
                             showSkipAction: canSkipWorkout,
                             onConfigure: () =>
-                                _openPage(const WorkoutPlanPage()),
+                                _openPage(
+                                  page: const WorkoutPlanPage(),
+                                  pageState:
+                                      const PersistedPageState.workoutPlan(),
+                                ),
                             onStart: currentWorkout == null
                                 ? null
                                 : _skippingWorkout

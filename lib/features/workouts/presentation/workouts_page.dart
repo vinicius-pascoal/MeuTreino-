@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app_theme.dart';
+import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../data/workout_service.dart';
@@ -16,6 +19,7 @@ class WorkoutsPage extends StatefulWidget {
 
 class _WorkoutsPageState extends State<WorkoutsPage> {
   final _service = WorkoutService();
+  final _navigationStateService = AppNavigationStateService();
 
   Future<void> _createOrEditWorkoutDialog({Workout? workout}) async {
     final nameController = TextEditingController(text: workout?.name ?? '');
@@ -117,9 +121,13 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
   }
 
   void _openAutoWorkoutPage() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const AutoWorkoutPage()));
+    unawaited(
+      _navigationStateService.pushTrackedPage(
+        context: context,
+        pageState: const PersistedPageState.autoWorkout(),
+        builder: (_) => const AutoWorkoutPage(),
+      ),
+    );
   }
 
   @override
@@ -161,8 +169,12 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                           _createOrEditWorkoutDialog(workout: workout),
                       onDelete: () => _deleteWorkout(workout),
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
+                        unawaited(
+                          _navigationStateService.pushTrackedPage(
+                            context: context,
+                            pageState: PersistedPageState.workoutDetail(
+                              workoutId: workout.id,
+                            ),
                             builder: (_) => WorkoutDetailPage(workout: workout),
                           ),
                         );

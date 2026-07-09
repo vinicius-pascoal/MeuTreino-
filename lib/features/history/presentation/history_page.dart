@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/app_theme.dart';
+import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
 import '../../workout_session/data/workout_session_service.dart';
 import '../../workout_session/models/workout_session_summary.dart';
@@ -13,6 +16,7 @@ class HistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = WorkoutSessionService();
+    final navigationStateService = AppNavigationStateService();
 
     return AppPageScaffold(
       title: 'Historico',
@@ -43,8 +47,12 @@ class HistoryPage extends StatelessWidget {
                     child: _HistorySessionCard(
                       session: session,
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
+                        unawaited(
+                          navigationStateService.pushTrackedPage(
+                            context: context,
+                            pageState: PersistedPageState.historyDetail(
+                              sessionId: session.id,
+                            ),
                             builder: (_) => HistoryDetailPage(session: session),
                           ),
                         );

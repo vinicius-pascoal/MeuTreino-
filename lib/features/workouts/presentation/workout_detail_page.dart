@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../../exercise_stats/data/user_exercise_stats_service.dart';
@@ -58,12 +61,14 @@ class WorkoutDetailPage extends StatelessWidget {
                   ),
                   keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: weightController,
-                  decoration: const InputDecoration(labelText: 'Carga atual'),
-                  keyboardType: TextInputType.number,
-                ),
+                if (!exercise.isBodyweight) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: weightController,
+                    decoration: const InputDecoration(labelText: 'Carga atual'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: notesController,
@@ -88,11 +93,12 @@ class WorkoutDetailPage extends StatelessWidget {
                   targetReps: repsController.text,
                   restSeconds:
                       int.tryParse(restController.text) ?? exercise.restSeconds,
-                  currentWeight:
-                      double.tryParse(
-                        weightController.text.replaceAll(',', '.'),
-                      ) ??
-                      exercise.currentWeight,
+                  currentWeight: exercise.isBodyweight
+                      ? 0
+                      : double.tryParse(
+                              weightController.text.replaceAll(',', '.'),
+                            ) ??
+                            exercise.currentWeight,
                   notes: notesController.text,
                 );
 
@@ -221,10 +227,12 @@ class WorkoutDetailPage extends StatelessWidget {
       }
 
       final replacementWeight =
-          await exerciseStatsService.getLastUsedWeight(
-            exerciseLibraryId: replacement.id,
-          ) ??
-          exercise.currentWeight;
+          replacement.isBodyweight
+          ? 0.0
+          : await exerciseStatsService.getLastUsedWeight(
+                  exerciseLibraryId: replacement.id,
+                ) ??
+                exercise.currentWeight;
 
       await workoutService.replaceWorkoutExercise(
         workoutId: workout.id,
@@ -358,6 +366,7 @@ class WorkoutDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = WorkoutService();
+    final navigationStateService = AppNavigationStateService();
 
     return AppPageScaffold(
       title: workout.name,
@@ -366,11 +375,18 @@ class WorkoutDetailPage extends StatelessWidget {
         IconButton(
           tooltip: 'Adicionar exercicio',
           onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
+            final nextOrder = DateTime.now().millisecondsSinceEpoch;
+
+            unawaited(
+              navigationStateService.pushTrackedPage(
+                context: context,
+                pageState: PersistedPageState.selectExercise(
+                  workoutId: workout.id,
+                  nextOrder: nextOrder,
+                ),
                 builder: (_) => SelectExercisePage(
                   workoutId: workout.id,
-                  nextOrder: DateTime.now().millisecondsSinceEpoch,
+                  nextOrder: nextOrder,
                 ),
               ),
             );
@@ -380,8 +396,12 @@ class WorkoutDetailPage extends StatelessWidget {
       ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
+          unawaited(
+            navigationStateService.pushTrackedPage(
+              context: context,
+              pageState: PersistedPageState.workoutSession(
+                workoutId: workout.id,
+              ),
               builder: (_) => WorkoutSessionPage(workout: workout),
             ),
           );
@@ -489,14 +509,16 @@ class WorkoutDetailPage extends StatelessWidget {
                           Text(
                             '${exercise.sets} series - ${exercise.targetReps} reps - ${exercise.restSeconds}s descanso',
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
-                            style: const TextStyle(
-                              color: Color(0xFF22C55E),
-                              fontWeight: FontWeight.w700,
+                          if (!exercise.isBodyweight) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
+                              style: const TextStyle(
+                                color: Color(0xFF22C55E),
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),

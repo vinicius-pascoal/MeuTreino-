@@ -43,6 +43,12 @@ class WorkoutService {
     return snapshot.docs.map((doc) => Workout.fromFirestore(doc)).toList();
   }
 
+  Future<Workout?> getWorkoutById({required String workoutId}) async {
+    final doc = await _workoutsCollection.doc(workoutId).get();
+    if (!doc.exists) return null;
+    return Workout.fromFirestore(doc);
+  }
+
   Future<void> createWorkout({
     required String name,
     required String description,

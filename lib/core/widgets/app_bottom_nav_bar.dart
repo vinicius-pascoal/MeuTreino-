@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../app/app_theme.dart';
+import '../../core/navigation/app_navigation_state_service.dart';
 import '../../features/auth/data/auth_service.dart';
 import '../../features/exercises/presentation/exercise_library_page.dart';
 import '../../features/workout_automation/presentation/auto_workout_page.dart';
@@ -13,6 +14,7 @@ const double _navIconSize = 20;
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onItemSelected;
+  static final _navigationStateService = AppNavigationStateService();
 
   const AppBottomNavBar({
     super.key,
@@ -43,9 +45,15 @@ class AppBottomNavBar extends StatelessWidget {
     ),
   ];
 
-  Future<void> _openOverlayPage(BuildContext context, Widget page) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => page),
+  Future<void> _openOverlayPage({
+    required BuildContext context,
+    required Widget page,
+    required PersistedPageState pageState,
+  }) async {
+    await _navigationStateService.pushTrackedPage(
+      context: context,
+      pageState: pageState,
+      builder: (_) => page,
     );
   }
 
@@ -107,13 +115,14 @@ class AppBottomNavBar extends StatelessWidget {
                             subtitle:
                                 'Edite a sequencia e os dias esperados da rotina.',
                             onTap: () async {
-                              Navigator.of(sheetContext).pop();
-                              await _openOverlayPage(
-                                context,
-                                const WorkoutPlanPage(),
-                              );
-                            },
-                          ),
+                            Navigator.of(sheetContext).pop();
+                            await _openOverlayPage(
+                              context: context,
+                              page: const WorkoutPlanPage(),
+                              pageState: const PersistedPageState.workoutPlan(),
+                            );
+                          },
+                        ),
                           const SizedBox(height: 6),
                           _BottomSheetAction(
                             icon: Icons.auto_awesome_rounded,
@@ -121,13 +130,14 @@ class AppBottomNavBar extends StatelessWidget {
                             subtitle:
                                 'Monte uma rotina inicial com poucos toques.',
                             onTap: () async {
-                              Navigator.of(sheetContext).pop();
-                              await _openOverlayPage(
-                                context,
-                                const AutoWorkoutPage(),
-                              );
-                            },
-                          ),
+                            Navigator.of(sheetContext).pop();
+                            await _openOverlayPage(
+                              context: context,
+                              page: const AutoWorkoutPage(),
+                              pageState: const PersistedPageState.autoWorkout(),
+                            );
+                          },
+                        ),
                           const SizedBox(height: 6),
                           _BottomSheetAction(
                             icon: Icons.photo_library_outlined,
@@ -135,13 +145,15 @@ class AppBottomNavBar extends StatelessWidget {
                             subtitle:
                                 'Consulte exercicios e referencias locais.',
                             onTap: () async {
-                              Navigator.of(sheetContext).pop();
-                              await _openOverlayPage(
-                                context,
-                                const ExerciseLibraryPage(),
-                              );
-                            },
-                          ),
+                            Navigator.of(sheetContext).pop();
+                            await _openOverlayPage(
+                              context: context,
+                              page: const ExerciseLibraryPage(),
+                              pageState:
+                                  const PersistedPageState.exerciseLibrary(),
+                            );
+                          },
+                        ),
                           const SizedBox(height: 6),
                           _BottomSheetAction(
                             icon: Icons.logout_rounded,

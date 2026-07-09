@@ -203,7 +203,11 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   }
 
   void _loadExerciseFields(WorkoutExercise exercise) {
-    _weightController.text = _formatWeight(_suggestedWeightFor(exercise));
+    if (exercise.isBodyweight) {
+      _weightController.clear();
+    } else {
+      _weightController.text = _formatWeight(_suggestedWeightFor(exercise));
+    }
     _repsController.clear();
   }
 
@@ -471,14 +475,16 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
                   '${_exerciseSubtitle(exercise)} - Série $currentSet de ${exercise.sets}',
                   style: const TextStyle(color: Colors.white70),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
-                  style: const TextStyle(
-                    color: _accentColor,
-                    fontWeight: FontWeight.w600,
+                if (!exercise.isBodyweight) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
+                    style: const TextStyle(
+                      color: _accentColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -683,15 +689,17 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
                   ),
                 ),
                 const SizedBox(height: 18),
-                TextField(
-                  controller: _weightController,
-                  decoration: const InputDecoration(
-                    labelText: 'Carga usada',
-                    suffixText: 'kg',
+                if (!exercise.isBodyweight) ...[
+                  TextField(
+                    controller: _weightController,
+                    decoration: const InputDecoration(
+                      labelText: 'Carga usada',
+                      suffixText: 'kg',
+                    ),
+                    keyboardType: TextInputType.number,
                   ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 14),
+                  const SizedBox(height: 14),
+                ],
                 TextField(
                   controller: _repsController,
                   decoration: InputDecoration(

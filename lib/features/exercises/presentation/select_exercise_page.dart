@@ -66,13 +66,17 @@ class SelectExercisePage extends StatelessWidget {
                   ),
                   keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: weightController,
-                  decoration: const InputDecoration(labelText: 'Carga inicial'),
-                  keyboardType: TextInputType.number,
-                ),
-                if (lastUsedWeight != null) ...[
+                if (!exercise.isBodyweight) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: weightController,
+                    decoration: const InputDecoration(
+                      labelText: 'Carga inicial',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+                if (!exercise.isBodyweight && lastUsedWeight != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Ultima carga registrada: ${_formatWeight(lastUsedWeight)} kg',
@@ -91,11 +95,12 @@ class SelectExercisePage extends StatelessWidget {
               onPressed: () async {
                 final sets = int.tryParse(setsController.text) ?? 3;
                 final restSeconds = int.tryParse(restController.text) ?? 90;
-                final currentWeight =
-                    double.tryParse(
-                      weightController.text.replaceAll(',', '.'),
-                    ) ??
-                    0;
+                final currentWeight = exercise.isBodyweight
+                    ? 0.0
+                    : double.tryParse(
+                            weightController.text.replaceAll(',', '.'),
+                          ) ??
+                          0;
 
                 await service.addExerciseToWorkout(
                   workoutId: workoutId,

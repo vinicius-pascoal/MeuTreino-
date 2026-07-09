@@ -112,6 +112,12 @@ class WorkoutSessionService {
         .toList();
   }
 
+  Future<WorkoutSessionSummary?> getSessionById({required String sessionId}) async {
+    final doc = await _sessionsCollection.doc(sessionId).get();
+    if (!doc.exists) return null;
+    return WorkoutSessionSummary.fromFirestore(doc);
+  }
+
   Future<List<PerformedSet>> getSessionSets({required String sessionId}) async {
     final snapshot = await _sessionsCollection
         .doc(sessionId)

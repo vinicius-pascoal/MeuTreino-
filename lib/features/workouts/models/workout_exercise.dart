@@ -37,6 +37,8 @@ class WorkoutExercise {
     required this.notes,
   });
 
+  bool get isBodyweight => equipment.trim().toLowerCase() == 'peso corporal';
+
   factory WorkoutExercise.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {

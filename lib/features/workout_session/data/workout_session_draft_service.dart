@@ -112,6 +112,7 @@ class WorkoutSessionRestDraft {
 
 class WorkoutSessionDraftService {
   static const _keyPrefix = 'workout_session_draft_';
+  static const _activeWorkoutIdKey = 'workout_session_active_workout_id';
 
   String _key(String workoutId) => '$_keyPrefix$workoutId';
 
@@ -176,7 +177,37 @@ class WorkoutSessionDraftService {
     });
 
     try {
-      await HomeWidget.saveWidgetData<String>(_key(workout.id), payload);
+      await Future.wait([
+        HomeWidget.saveWidgetData<String>(_key(workout.id), payload),
+        HomeWidget.saveWidgetData<String>(_activeWorkoutIdKey, workout.id),
+      ]);
+    } catch (_) {
+      return;
+    }
+  }
+
+  Future<String?> loadActiveWorkoutId() async {
+    try {
+      final workoutId = await HomeWidget.getWidgetData<String>(_activeWorkoutIdKey);
+      if (workoutId == null || workoutId.trim().isEmpty) {
+        return null;
+      }
+
+      final payload = await HomeWidget.getWidgetData<String>(_key(workoutId));
+      if (payload == null || payload.trim().isEmpty) {
+        await clearActiveWorkoutId();
+        return null;
+      }
+
+      return workoutId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> clearActiveWorkoutId() async {
+    try {
+      await HomeWidget.saveWidgetData<String>(_activeWorkoutIdKey, null);
     } catch (_) {
       return;
     }
@@ -184,7 +215,13 @@ class WorkoutSessionDraftService {
 
   Future<void> clearDraft({required String workoutId}) async {
     try {
+      final activeWorkoutId = await loadActiveWorkoutId();
+
       await HomeWidget.saveWidgetData<String>(_key(workoutId), null);
+
+      if (activeWorkoutId == workoutId) {
+        await clearActiveWorkoutId();
+      }
     } catch (_) {
       return;
     }
