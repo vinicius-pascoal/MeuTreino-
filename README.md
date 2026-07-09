@@ -1,151 +1,149 @@
 # MeuTreino+
 
-**MeuTreino+** é um aplicativo Flutter para acompanhamento de progressão na academia. O app permite organizar treinos por dia, separar exercícios por sequência ABC, registrar cargas e repetições, controlar tempo de descanso, acompanhar histórico de treinos e visualizar a frequência em um calendário.
+MeuTreino+ e um aplicativo Flutter para acompanhamento de treinos de musculacao. O foco do projeto e oferecer uma experiencia simples para montar treinos, registrar series, acompanhar frequencia e visualizar evolucao sem excesso visual.
 
-O objetivo do projeto é oferecer uma experiência simples e visual para quem deseja acompanhar sua evolução na musculação, com fotos dos exercícios, registro de séries e controle automático do próximo treino.
+O app usa Firebase Authentication para login e Cloud Firestore para persistencia dos dados do usuario.
+
+---
+
+## Visao Geral
+
+Com o app e possivel:
+
+* Criar e organizar treinos personalizados.
+* Montar uma sequencia semanal de treinos.
+* Escolher dias esperados de treino.
+* Registrar series, repeticoes, carga e descanso.
+* Salvar historico completo das sessoes.
+* Visualizar progresso e frequencia no calendario.
+* Retomar treino em andamento ao reabrir o app.
+* Voltar para a aba e para a tela principal em que o usuario estava.
 
 ---
 
 ## Funcionalidades
 
-### Autenticação
+### Autenticacao
 
-* Cadastro de usuário com e-mail e senha.
+* Cadastro com e-mail e senha.
 * Login com Firebase Authentication.
 * Logout.
-* Dados separados por usuário autenticado.
+* Dados isolados por usuario autenticado.
 
-### Biblioteca de Exercícios
+### Biblioteca de Exercicios
 
-* Lista de exercícios cadastrados no Firestore.
-* Exibição de imagem local para cada exercício.
-* Organização por grupo muscular.
-* Instruções básicas de execução.
-* Popular biblioteca inicial diretamente pelo app.
+* Lista de exercicios vinda do Firestore.
+* Imagens locais para os exercicios.
+* Organizacao por grupo muscular.
+* Instrucoes basicas de execucao.
+* Populacao inicial da biblioteca pelo proprio app.
 
-As imagens dos exercícios ficam salvas localmente no projeto, dentro da pasta:
+As imagens ficam em:
 
 ```text
 assets/exercises/
 ```
 
-Exemplo de imagem cadastrada no Firestore:
-
-```json
-{
-  "name": "Supino reto com halteres",
-  "muscleGroup": "Peito",
-  "imageAsset": "assets/exercises/supino_reto_halteres.jpg",
-  "instructions": "Deite no banco, mantenha os pés firmes no chão e empurre os halteres para cima controlando a descida."
-}
-```
-
 ### Treinos
 
-* Criar treinos personalizados.
-* Editar nome e descrição dos treinos.
-* Excluir treinos.
-* Adicionar exercícios da biblioteca a um treino.
-* Editar configurações do exercício no treino:
+* Criar, editar e excluir treinos.
+* Adicionar exercicios da biblioteca ao treino.
+* Editar configuracoes de cada exercicio:
+  * series
+  * repeticoes
+  * descanso
+  * carga atual
+  * observacoes
+* Excluir exercicios do treino.
+* Trocar exercicio por outro similar.
+* Gerar treino automatico para montar uma base inicial.
 
-  * Séries.
-  * Repetições.
-  * Tempo de descanso.
-  * Carga atual.
-  * Observações.
-* Excluir exercícios de um treino.
+### Treino Semanal e Sequencia ABC
 
-Exemplo de organização:
+O app permite configurar uma sequencia como:
 
 ```text
-Treino A — Peito, Ombro e Tríceps
-Treino B — Costas e Bíceps
-Treino C — Pernas
+Treino A -> Treino B -> Treino C
 ```
 
-### Sequência ABC
+Tambem e possivel:
 
-O app permite configurar uma sequência de treino, por exemplo:
+* Editar o treino semanal pelo menu `Mais` da navbar.
+* Definir os dias esperados de treino da semana.
+* Ver o treino do dia na Home.
+* Pular manualmente o treino atual pela Home sem registrar sessao concluida.
 
-```text
-Treino A → Treino B → Treino C
-```
-
-O sistema mostra automaticamente o próximo treino do dia na Home.
-
-A sequência funciona com a seguinte regra:
+Regra da sequencia:
 
 ```text
-O treino só avança quando o usuário finaliza e salva o treino.
-Se o usuário faltar, o treino não é pulado.
-```
-
-Exemplo:
-
-```text
-Segunda: Treino A aparece.
-Usuário não treina.
-Terça: Treino A continua aparecendo.
-Usuário treina e salva.
-Quarta: Treino B aparece.
+O treino avanca automaticamente quando o usuario finaliza e salva o treino.
+Se o usuario faltar, o treino nao e pulado sozinho.
+Se necessario, o usuario pode avancar manualmente usando o botao "Pular treino".
 ```
 
 ### Treino em Andamento
 
 Durante o treino, o app permite:
 
-* Exibir foto grande do exercício.
-* Mostrar exercício atual.
-* Mostrar série atual.
-* Informar carga usada.
-* Informar repetições realizadas.
-* Concluir série.
+* Exibir foto grande do exercicio.
+* Alternar entre os exercicios do treino.
+* Mostrar serie atual.
+* Registrar carga usada e repeticoes.
 * Usar temporizador de descanso.
-* Calcular volume parcial do treino.
-* Finalizar e salvar treino no Firestore.
+* Calcular volume parcial.
+* Finalizar e salvar a sessao no Firestore.
 
-### Histórico de Treinos
+Regras extras do fluxo:
+
+* Exercicios de peso corporal nao exibem campo de carga no cadastro.
+* Exercicios de peso corporal tambem ocultam a carga durante a sessao.
+* O treino em andamento salva rascunho automaticamente.
+* Ao abrir o app novamente, o treino em andamento pode ser retomado.
+
+### Continuidade de Uso
+
+Para reduzir perda de contexto ao sair do app:
+
+* A ultima aba principal usada fica salva.
+* A ultima tela principal de fluxos importantes pode ser restaurada.
+* Se existir treino em andamento, ele pode ser reaberto automaticamente.
+
+### Historico
 
 Ao finalizar um treino, o app salva:
 
-* Treino realizado.
-* Data de início.
-* Data de finalização.
-* Duração.
-* Séries realizadas.
-* Cargas usadas.
-* Repetições feitas.
-* Volume total.
-* Total de séries.
+* treino realizado
+* data de inicio
+* data de finalizacao
+* duracao
+* series realizadas
+* cargas usadas
+* repeticoes feitas
+* volume total
+* total de series
 
-O histórico permite consultar os treinos anteriores e visualizar os detalhes das séries feitas.
+O historico permite abrir a sessao e ver o detalhe de cada serie.
 
 ### Progresso
 
 A tela de progresso mostra:
 
-* Total de treinos realizados.
-* Volume total acumulado.
-* Total de séries realizadas.
-* Volume médio por treino.
-* Lista dos últimos treinos.
+* total de treinos realizados
+* volume total acumulado
+* total de series
+* media de volume por treino
+* tendencia recente
+* distribuicao por grupo muscular
+* lista dos ultimos treinos
 
-### Calendário de Frequência
+### Calendario de Frequencia
 
-A Home possui um calendário que indica a frequência do usuário:
+A Home possui calendario de frequencia com:
 
-* Dias em verde: usuário treinou.
-* Dias em vermelho: usuário faltou em um dia esperado de treino.
-
-Os dias esperados são definidos na configuração da sequência ABC.
-
-Exemplo:
-
-```text
-Segunda a sexta selecionados como dias de treino.
-Se o usuário treinar na segunda, o dia fica verde.
-Se faltar na terça, o dia fica vermelho.
-```
+* dias concluidos
+* dias perdidos dentro da meta semanal
+* leitura por mes
+* calculo com base nos dias esperados de treino
 
 ---
 
@@ -155,38 +153,61 @@ Se faltar na terça, o dia fica vermelho.
 * Dart
 * Firebase Authentication
 * Cloud Firestore
-* FlutterFire CLI
 * Riverpod
+* Home Widget
 * Table Calendar
 * Intl
-* UUID
 
 ---
 
-## Serviços Firebase Utilizados
+## Estrutura Resumida
+
+```text
+lib/
+  app/
+  core/
+    navigation/
+    utils/
+    widgets/
+  features/
+    auth/
+    exercises/
+    exercise_stats/
+    history/
+    home/
+    home_widgets/
+    progress/
+    workout_automation/
+    workout_plan/
+    workout_session/
+    workouts/
+```
+
+---
+
+## Servicos Firebase
 
 ### Firebase Authentication
 
-Usado para autenticação de usuários com e-mail e senha.
+Responsavel por login, cadastro e sessao do usuario.
 
 ### Cloud Firestore
 
-Usado para armazenar:
+Armazena:
 
-* Dados do usuário.
-* Biblioteca de exercícios.
-* Treinos.
-* Exercícios dentro dos treinos.
-* Sequência ABC.
-* Histórico de treinos.
-* Séries realizadas.
-* Dados de progresso.
+* treinos
+* exercicios da biblioteca
+* exercicios dentro dos treinos
+* plano semanal
+* sessoes de treino
+* series registradas
+* dados de progresso
 
 ### Firebase Storage
 
-Este projeto **não utiliza Firebase Storage na versão atual**.
+Nao e utilizado na versao atual.
 
-As imagens dos exercícios são armazenadas localmente em:
+As imagens dos exercicios sao locais:
 
 ```text
 assets/exercises/
@@ -194,224 +215,25 @@ assets/exercises/
 
 ---
 
-## Estrutura de Pastas
-
-```text
-lib/
-  main.dart
-  firebase_options.dart
-
-  app/
-    app_widget.dart
-    app_theme.dart
-
-  core/
-    utils/
-      date_key.dart
-    widgets/
-      exercise_image.dart
-      rest_timer.dart
-
-  features/
-    auth/
-      data/
-        auth_service.dart
-      presentation/
-        auth_gate.dart
-        login_page.dart
-        register_page.dart
-
-    home/
-      presentation/
-        home_page.dart
-        widgets/
-          attendance_calendar.dart
-
-    exercises/
-      data/
-        exercise_library_service.dart
-      models/
-        exercise.dart
-      presentation/
-        exercise_library_page.dart
-        select_exercise_page.dart
-
-    workouts/
-      data/
-        workout_service.dart
-      models/
-        workout.dart
-        workout_exercise.dart
-      presentation/
-        workouts_page.dart
-        workout_detail_page.dart
-
-    workout_plan/
-      data/
-        workout_plan_service.dart
-      models/
-        workout_plan.dart
-      presentation/
-        workout_plan_page.dart
-
-    workout_session/
-      data/
-        workout_session_service.dart
-      models/
-        completed_set_input.dart
-        performed_set.dart
-        workout_session_summary.dart
-      presentation/
-        workout_session_page.dart
-
-    history/
-      presentation/
-        history_page.dart
-        history_detail_page.dart
-
-    progress/
-      presentation/
-        progress_page.dart
-```
-
----
-
-## Estrutura de Assets
-
-As imagens dos exercícios devem ficar em:
-
-```text
-assets/
-  exercises/
-    supino_reto_halteres.jpg
-    supino_inclinado_halteres.jpg
-    puxada_frente.jpg
-    remada_baixa.jpg
-    leg_press.jpg
-    cadeira_extensora.jpg
-    mesa_flexora.jpg
-    triceps_corda.jpg
-    rosca_direta.jpg
-    elevacao_lateral.jpg
-```
-
-No `pubspec.yaml`, os assets devem estar configurados assim:
-
-```yaml
-flutter:
-  uses-material-design: true
-
-  assets:
-    - assets/exercises/
-```
-
----
-
-## Modelo de Dados no Firestore
-
-### Usuários
+## Modelo de Dados Resumido
 
 ```text
 users/{userId}
-```
-
-Exemplo:
-
-```json
-{
-  "name": "Vinicius",
-  "email": "vinicius@email.com",
-  "createdAt": "timestamp"
-}
-```
-
----
-
-### Biblioteca de Exercícios
-
-```text
+users/{userId}/workouts/{workoutId}
+users/{userId}/workouts/{workoutId}/exercises/{exerciseId}
+users/{userId}/training_plan/main
+users/{userId}/workout_sessions/{sessionId}
+users/{userId}/workout_sessions/{sessionId}/sets/{setId}
 exercise_library/{exerciseId}
 ```
 
-Exemplo:
+Campos importantes do plano semanal:
 
 ```json
 {
-  "name": "Supino reto com halteres",
-  "muscleGroup": "Peito",
-  "imageAsset": "assets/exercises/supino_reto_halteres.jpg",
-  "instructions": "Deite no banco, mantenha os pés firmes no chão e empurre os halteres para cima controlando a descida.",
-  "createdAt": "timestamp"
-}
-```
-
----
-
-### Treinos do Usuário
-
-```text
-users/{userId}/workouts/{workoutId}
-```
-
-Exemplo:
-
-```json
-{
-  "name": "Treino A",
-  "description": "Peito, ombro e tríceps",
-  "weekDays": [],
-  "createdAt": "timestamp",
-  "updatedAt": "timestamp"
-}
-```
-
----
-
-### Exercícios Dentro do Treino
-
-```text
-users/{userId}/workouts/{workoutId}/exercises/{exerciseId}
-```
-
-Exemplo:
-
-```json
-{
-  "exerciseLibraryId": "supino_reto_halteres",
-  "name": "Supino reto com halteres",
-  "muscleGroup": "Peito",
-  "imageAsset": "assets/exercises/supino_reto_halteres.jpg",
-  "order": 1,
-  "sets": 3,
-  "targetReps": "8-10",
-  "restSeconds": 90,
-  "currentWeight": 20,
-  "notes": "",
-  "createdAt": "timestamp",
-  "updatedAt": "timestamp"
-}
-```
-
----
-
-### Plano de Treino ABC
-
-```text
-users/{userId}/training_plan/main
-```
-
-Exemplo:
-
-```json
-{
-  "sequenceWorkoutIds": [
-    "idTreinoA",
-    "idTreinoB",
-    "idTreinoC"
-  ],
+  "sequenceWorkoutIds": ["treinoA", "treinoB", "treinoC"],
   "currentWorkoutIndex": 0,
-  "trainingWeekDays": [1, 2, 3, 4, 5],
-  "updatedAt": "timestamp"
+  "trainingWeekDays": [1, 2, 3, 4, 5]
 }
 ```
 
@@ -419,98 +241,17 @@ Onde:
 
 ```text
 1 = segunda
-2 = terça
+2 = terca
 3 = quarta
 4 = quinta
 5 = sexta
-6 = sábado
+6 = sabado
 7 = domingo
 ```
 
 ---
 
-### Sessões de Treino
-
-```text
-users/{userId}/workout_sessions/{sessionId}
-```
-
-Exemplo:
-
-```json
-{
-  "workoutId": "idTreinoA",
-  "workoutName": "Treino A",
-  "startedAt": "timestamp",
-  "finishedAt": "timestamp",
-  "workoutDateKey": "2026-06-18",
-  "durationSeconds": 3600,
-  "totalVolume": 8420,
-  "totalSets": 18,
-  "status": "finished",
-  "createdAt": "timestamp"
-}
-```
-
----
-
-### Séries Realizadas
-
-```text
-users/{userId}/workout_sessions/{sessionId}/sets/{setId}
-```
-
-Exemplo:
-
-```json
-{
-  "workoutExerciseId": "idDoExercicioNoTreino",
-  "exerciseLibraryId": "supino_reto_halteres",
-  "exerciseName": "Supino reto com halteres",
-  "muscleGroup": "Peito",
-  "setNumber": 1,
-  "weight": 20,
-  "reps": 10,
-  "volume": 200,
-  "completedAt": "timestamp"
-}
-```
-
----
-
-## Regras do Firestore
-
-Durante o desenvolvimento, podem ser usadas regras simples para permitir que o usuário acesse apenas os próprios dados.
-
-```js
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    match /users/{userId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
-
-      match /{document=**} {
-        allow read, write: if request.auth != null
-                           && request.auth.uid == userId;
-      }
-    }
-
-    match /exercise_library/{exerciseId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
-
-Em uma versão final, a escrita em `exercise_library` deve ser limitada a administradores.
-
----
-
-## Instalação do Projeto
+## Instalacao
 
 ### 1. Clonar o projeto
 
@@ -519,7 +260,7 @@ git clone <url-do-repositorio>
 cd meutreinoplus
 ```
 
-### 2. Instalar dependências
+### 2. Instalar dependencias
 
 ```bash
 flutter pub get
@@ -533,7 +274,7 @@ Instale o Firebase CLI:
 npm install -g firebase-tools
 ```
 
-Faça login:
+Faca login:
 
 ```bash
 firebase login
@@ -545,53 +286,13 @@ Instale o FlutterFire CLI:
 dart pub global activate flutterfire_cli
 ```
 
-Configure o Firebase no projeto:
+Configure o projeto:
 
 ```bash
 flutterfire configure
 ```
 
-Esse comando deve gerar o arquivo:
-
-```text
-lib/firebase_options.dart
-```
-
-### 4. Ativar Firebase Authentication
-
-No Firebase Console:
-
-```text
-Build > Authentication > Get started > Sign-in method > Email/Password > Enable
-```
-
-### 5. Criar Cloud Firestore
-
-No Firebase Console:
-
-```text
-Build > Firestore Database > Create database
-```
-
-Use modo de produção e depois configure as regras informadas neste README.
-
-### 6. Adicionar imagens dos exercícios
-
-Crie a pasta:
-
-```text
-assets/exercises/
-```
-
-Adicione as imagens usadas na biblioteca inicial.
-
-Exemplo:
-
-```text
-assets/exercises/supino_reto_halteres.jpg
-```
-
-### 7. Rodar o app
+### 4. Rodar o app
 
 ```bash
 flutter run
@@ -604,176 +305,146 @@ flutter run
 ### Primeiro uso
 
 1. Criar conta.
-2. Acessar a Home.
-3. Abrir a Biblioteca de Exercícios.
-4. Clicar para popular a biblioteca inicial.
-5. Criar os treinos, por exemplo:
-
-   * Treino A.
-   * Treino B.
-   * Treino C.
-6. Adicionar exercícios a cada treino.
-7. Configurar a sequência ABC.
-8. Selecionar os dias esperados de treino.
-9. Iniciar treino pela Home.
+2. Popular a biblioteca inicial de exercicios.
+3. Criar treinos.
+4. Adicionar exercicios aos treinos.
+5. Configurar a sequencia semanal.
+6. Definir os dias esperados de treino.
+7. Iniciar treino pela Home ou pela tela do treino.
 
 ### Durante o treino
 
-1. O app mostra o exercício atual.
-2. O usuário informa carga e repetições.
-3. O usuário conclui a série.
-4. O app mostra o temporizador de descanso.
-5. Ao terminar todos os exercícios, o usuário salva o treino.
-6. O app salva o histórico e avança para o próximo treino da sequência.
+1. O app mostra o exercicio atual.
+2. O usuario informa repeticoes e, quando fizer sentido, a carga usada.
+3. O usuario conclui a serie.
+4. O app atualiza o progresso parcial e o descanso.
+5. Ao terminar o treino, o usuario salva a sessao.
+6. O app registra o historico e avanca a sequencia semanal.
 
 ---
 
-## Cálculo de Volume
+## Calculo de Volume
 
-O volume de cada série é calculado por:
+O volume de cada serie e calculado por:
 
 ```text
-volume = carga × repetições
+volume = carga x repeticoes
 ```
 
 Exemplo:
 
 ```text
-20 kg × 10 reps = 200 kg
+20 kg x 10 reps = 200 kg
 ```
 
-O volume total do treino é a soma do volume de todas as séries realizadas.
-
----
-
-## Regra do Próximo Treino
-
-O próximo treino é controlado pelo campo:
-
-```text
-currentWorkoutIndex
-```
-
-Exemplo:
-
-```json
-{
-  "sequenceWorkoutIds": ["treinoA", "treinoB", "treinoC"],
-  "currentWorkoutIndex": 0
-}
-```
-
-Nesse caso, o treino atual é:
-
-```text
-sequenceWorkoutIds[0] = treinoA
-```
-
-Depois que o treino é finalizado, o app altera:
-
-```json
-{
-  "currentWorkoutIndex": 1
-}
-```
-
-Então o próximo treino passa a ser:
-
-```text
-sequenceWorkoutIds[1] = treinoB
-```
-
-Se o usuário faltar, o índice não muda.
+O volume total do treino e a soma do volume de todas as series.
 
 ---
 
 ## Status Atual do Projeto
 
-Funcionalidades implementadas ou planejadas na estrutura atual:
+Funcionalidades ja implementadas:
 
 * [x] Login com Firebase Authentication.
-* [x] Cadastro de usuário.
-* [x] Home.
-* [x] Biblioteca de exercícios com imagens locais.
-* [x] Criação de treinos.
-* [x] Adição de exercícios ao treino.
-* [x] Configuração de sequência ABC.
-* [x] Exibição do treino do dia.
+* [x] Cadastro de usuario.
+* [x] Home com treino do dia.
+* [x] Biblioteca de exercicios com imagens locais.
+* [x] Criacao, edicao e exclusao de treinos.
+* [x] Adicao, edicao e exclusao de exercicios do treino.
+* [x] Troca de exercicio por similar.
+* [x] Geracao de treino automatico.
+* [x] Configuracao de sequencia ABC.
+* [x] Edicao do treino semanal pela navbar.
+* [x] Definicao de dias esperados de treino.
+* [x] Botao para pular treino semanal sem registrar sessao concluida.
 * [x] Temporizador de descanso.
-* [x] Registro de séries.
-* [x] Salvamento de histórico no Firestore.
-* [x] Cálculo de volume total.
-* [x] Tela de histórico.
+* [x] Registro de series.
+* [x] Salvamento de historico no Firestore.
+* [x] Calculo de volume total.
+* [x] Tela de historico com detalhe das series.
 * [x] Tela de progresso.
-* [x] Calendário de frequência.
-* [x] Edição e exclusão de treinos.
-* [x] Edição e exclusão de exercícios do treino.
+* [x] Calendario de frequencia.
+* [x] Rascunho de treino em andamento.
+* [x] Retomada automatica de treino em andamento ao abrir o app.
+* [x] Restauracao da aba e da ultima tela principal usada ao voltar para o app.
+* [x] Tratamento de exercicios de peso corporal sem campo de carga.
 
 ---
 
 ## Melhorias Futuras
 
-* Adicionar gráficos de evolução por exercício.
-* Mostrar evolução de carga por período.
-* Criar metas semanais de treino.
-* Criar lembretes de treino.
-* Adicionar tela de perfil.
-* Adicionar medidas corporais.
-* Permitir backup/exportação em PDF.
-* Adicionar templates prontos de treino.
-* Permitir reorganizar exercícios por drag and drop.
-* Criar modo offline aprimorado.
-* Adicionar login com Google.
-* Criar permissões de administrador para gerenciar biblioteca global.
+Melhorias recentes ja concluidas, antes tratadas como backlog:
+
+* [x] Editar treino semanal pelo menu `Mais` da navbar.
+* [x] Pular treino atual da sequencia sem registrar sessao.
+* [x] Retomar treino em andamento ao iniciar o app.
+* [x] Restaurar aba e tela recente ao voltar para o app.
+* [x] Nao exibir campo de carga para exercicios de peso corporal.
+
+Proximas melhorias sugeridas:
+
+* [ ] Graficos de evolucao por exercicio.
+* [ ] Evolucao de carga, repeticoes e volume por periodo.
+* [ ] Metas semanais com percentual de adesao e streak.
+* [ ] Lembretes e notificacoes de treino.
+* [ ] Tela de perfil com preferencias do usuario.
+* [ ] Medidas corporais e fotos de progresso.
+* [ ] Backup e exportacao em PDF e CSV.
+* [ ] Templates prontos de treino por objetivo.
+* [ ] Reorganizacao de exercicios por drag and drop.
+* [ ] Modo offline com fila de sincronizacao.
+* [ ] Login com Google.
+* [ ] Login com Apple.
+* [ ] Filtros avancados no historico e na biblioteca.
+* [ ] Recordes pessoais por exercicio.
+* [ ] Superseries, dropsets, aquecimento e RPE/RIR.
+* [ ] Duplicar treino e clonar semanas.
+* [ ] Permissoes de administrador para gerenciar biblioteca global.
 
 ---
 
-## Possíveis Problemas
+## Possiveis Problemas
 
-### Imagem não aparece
+### Imagem nao aparece
 
 Verifique:
 
 ```text
 1. A imagem existe dentro de assets/exercises/.
-2. O nome do arquivo está igual ao imageAsset salvo no Firestore.
-3. O pubspec.yaml está configurado corretamente.
+2. O nome do arquivo esta igual ao imageAsset salvo no Firestore.
+3. O pubspec.yaml esta configurado corretamente.
 4. O comando flutter pub get foi executado.
 ```
 
-### Calendário não fica em português
-
-Verifique se o `main.dart` possui:
-
-```dart
-await initializeDateFormatting('pt_BR', null);
-```
-
-E se o calendário possui:
-
-```dart
-locale: 'pt_BR'
-```
-
-### Treino do dia não aparece
+### Treino do dia nao aparece
 
 Verifique:
 
 ```text
 1. Existem treinos criados.
-2. A sequência ABC foi configurada.
+2. A sequencia semanal foi configurada.
 3. O documento users/{uid}/training_plan/main existe.
 4. Os IDs em sequenceWorkoutIds correspondem a treinos existentes.
 ```
 
-### Falta não aparece em vermelho
+### Treino em andamento nao voltou
+
+Verifique:
+
+```text
+1. Havia um rascunho salvo antes de fechar o app.
+2. O treino original ainda existe no Firestore.
+3. O fluxo nao foi encerrado com salvamento final da sessao.
+```
+
+### Falta nao aparece no calendario
 
 Verifique:
 
 ```text
 1. Os dias esperados foram configurados.
-2. O dia já passou.
-3. Não existe sessão de treino salva para aquele dia.
+2. O dia ja passou.
+3. Nao existe sessao de treino salva para aquele dia.
 ```
 
 ---
@@ -784,6 +455,6 @@ Desenvolvido por **Vinicius Pascoal**.
 
 ---
 
-## Licença
+## Licenca
 
-Este projeto foi desenvolvido para fins de estudo e evolução prática em Flutter com Firebase.
+Projeto desenvolvido para estudo e evolucao pratica em Flutter com Firebase.
