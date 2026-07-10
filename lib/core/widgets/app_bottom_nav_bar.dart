@@ -63,6 +63,7 @@ class AppBottomNavBar extends StatelessWidget {
   Future<void> _handleTap(BuildContext context, int index) async {
     switch (index) {
       case 3:
+        if (currentIndex == index) return;
         await _openOverlayPage(
           context: context,
           page: const WorkoutPlanPage(),
@@ -70,6 +71,7 @@ class AppBottomNavBar extends StatelessWidget {
         );
         return;
       case 4:
+        if (currentIndex == index) return;
         await _openOverlayPage(
           context: context,
           page: const AutoWorkoutPage(),
@@ -160,7 +162,6 @@ class AppBottomNavBar extends StatelessWidget {
                           index,
                         ) {
                           final item = _primaryDestinations[index];
-                          final isTab = index < 3;
 
                           return Expanded(
                             child: Padding(
@@ -171,8 +172,8 @@ class AppBottomNavBar extends StatelessWidget {
                               ),
                               child: _NavItem(
                                 data: item,
-                                selected: isTab && currentIndex == index,
-                                compact: !isTab,
+                                selected: currentIndex == index,
+                                compact: index >= 3,
                                 onTap: () => _handleTap(context, index),
                               ),
                             ),
