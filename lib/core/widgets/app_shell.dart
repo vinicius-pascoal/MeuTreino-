@@ -7,7 +7,6 @@ import '../../features/exercises/presentation/select_exercise_page.dart';
 import '../../features/history/presentation/history_detail_page.dart';
 import '../../features/history/presentation/history_page.dart';
 import '../../features/home/presentation/home_page.dart';
-import '../../features/progress/presentation/progress_page.dart';
 import '../../features/workout_automation/presentation/auto_workout_page.dart';
 import '../../features/workout_plan/presentation/workout_plan_page.dart';
 import '../../features/workout_session/data/workout_session_draft_service.dart';
@@ -40,7 +39,6 @@ class _AppShellState extends State<AppShell> {
     _ShellTab(storageKey: 'home-tab', child: HomePage()),
     _ShellTab(storageKey: 'workouts-tab', child: WorkoutsPage()),
     _ShellTab(storageKey: 'history-tab', child: HistoryPage()),
-    _ShellTab(storageKey: 'progress-tab', child: ProgressPage()),
   ];
 
   @override

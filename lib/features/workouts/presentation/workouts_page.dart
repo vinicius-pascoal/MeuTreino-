@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/app_theme.dart';
 import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
+import '../../exercises/presentation/exercise_library_page.dart';
 import '../../workout_automation/presentation/auto_workout_page.dart';
 import '../data/workout_service.dart';
 import '../models/workout.dart';
@@ -130,11 +131,28 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
     );
   }
 
+  void _openExerciseLibraryPage() {
+    unawaited(
+      _navigationStateService.pushTrackedPage(
+        context: context,
+        pageState: const PersistedPageState.exerciseLibrary(),
+        builder: (_) => const ExerciseLibraryPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppPageScaffold(
       title: 'Treinos',
       currentIndex: 1,
+      actions: [
+        IconButton(
+          tooltip: 'Biblioteca',
+          onPressed: _openExerciseLibraryPage,
+          icon: const Icon(Icons.photo_library_outlined),
+        ),
+      ],
       body: StreamBuilder<List<Workout>>(
         stream: _service.watchWorkouts(),
         builder: (context, snapshot) {
