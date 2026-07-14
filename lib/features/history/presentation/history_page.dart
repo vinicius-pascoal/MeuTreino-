@@ -40,10 +40,7 @@ class HistoryPage extends StatelessWidget {
           if (sessions.isEmpty) {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
-              children: const [
-                SizedBox(height: 20),
-                _EmptyEvolutionCard(),
-              ],
+              children: const [SizedBox(height: 20), _EmptyEvolutionCard()],
             );
           }
 
@@ -60,7 +57,9 @@ class HistoryPage extends StatelessWidget {
               }
 
               final setsBySession = setsSnapshot.data ?? const {};
-              final allSets = setsBySession.values.expand((sets) => sets).toList();
+              final allSets = setsBySession.values
+                  .expand((sets) => sets)
+                  .toList();
               final totalWorkouts = sessions.length;
               final totalVolume = sessions.fold<double>(
                 0,
@@ -86,25 +85,14 @@ class HistoryPage extends StatelessWidget {
               final recentTrend = _buildTrendData(
                 sessions.take(7).toList().reversed.toList(),
               );
-              final groupStats = _buildMuscleGroupStats(allSets);
+              final muscleMapStats = _buildMuscleEvolutionStats(
+                sessions: sessions,
+                setsBySession: setsBySession,
+              );
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
                 children: [
-                  _SummaryPanel(
-                    totalWorkouts: totalWorkouts,
-                    totalVolume: totalVolume,
-                    totalSets: totalSets,
-                    averageVolume: averageVolume,
-                    recentVolumeChange: recentVolumeChange,
-                  ),
-                  const SizedBox(height: 24),
-                  const AppSectionHeader(
-                    title: 'Destaques',
-                    subtitle:
-                        'Sinais rapidos para entender frequencia, densidade e ritmo recente.',
-                  ),
-                  const SizedBox(height: 12),
                   _HighlightsGrid(
                     averageSets: averageSets,
                     averageDurationMinutes: averageDurationMinutes,
@@ -115,40 +103,18 @@ class HistoryPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     _BestSessionCard(session: bestRecentSession),
                   ],
-                  const SizedBox(height: 24),
-                  const AppSectionHeader(
-                    title: 'Ritmo recente',
-                    subtitle:
-                        'Leitura visual dos ultimos treinos para comparar carga e consistencia.',
-                  ),
                   const SizedBox(height: 12),
-                  _TrendChart(data: recentTrend),
-                  const SizedBox(height: 24),
-                  const AppSectionHeader(
-                    title: 'Grupos musculares',
-                    subtitle:
-                        'Volume, series e pico de carga por area trabalhada recentemente.',
-                  ),
-                  const SizedBox(height: 12),
-                  if (groupStats.isEmpty)
+                  if (muscleMapStats.isEmpty)
                     const Card(
                       child: Padding(
                         padding: EdgeInsets.all(18),
                         child: Text(
-                          'Finalize mais treinos para liberar a leitura por grupo muscular.',
+                          'Finalize mais treinos para liberar o mapa muscular.',
                         ),
                       ),
                     )
                   else
-                    ...groupStats.map((group) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _MuscleGroupCard(
-                          stat: group,
-                          maxVolume: groupStats.first.volume,
-                        ),
-                      );
-                    }),
+                    _MuscleBodyMapCard(stats: muscleMapStats),
                   const SizedBox(height: 24),
                   const AppSectionHeader(
                     title: 'Historico de treinos',
@@ -229,6 +195,75 @@ class HistoryPage extends StatelessWidget {
     return result;
   }
 
+  List<_MuscleGroupEvolutionStat> _buildMuscleEvolutionStats({
+    required List<WorkoutSessionSummary> sessions,
+    required Map<String, List<PerformedSet>> setsBySession,
+  }) {
+    final recentSessions = sessions.take(6).toList();
+    if (recentSessions.length < 2) return const [];
+
+    final sessionVolumes = <Map<String, double>>[];
+    final allGroups = <String>{};
+
+    for (final session in recentSessions) {
+      final volumesByGroup = <String, double>{};
+
+      for (final set in setsBySession[session.id] ?? const []) {
+        final key = set.muscleGroup.trim().isEmpty ? 'Outros' : set.muscleGroup;
+        allGroups.add(key);
+        volumesByGroup[key] = (volumesByGroup[key] ?? 0) + set.volume;
+      }
+
+      sessionVolumes.add(volumesByGroup);
+    }
+
+    final result = <_MuscleGroupEvolutionStat>[];
+
+    for (final group in allGroups) {
+      final volumes = sessionVolumes
+          .map((sessionVolumesByGroup) => sessionVolumesByGroup[group] ?? 0.0)
+          .toList();
+
+      final recentCount = math.min(3, volumes.length);
+      final previousCount = math.min(3, volumes.length - recentCount);
+
+      if (recentCount == 0 || previousCount == 0) continue;
+
+      final recentAverage =
+          volumes
+              .take(recentCount)
+              .fold<double>(0, (sum, value) => sum + value) /
+          recentCount;
+      final previousAverage =
+          volumes
+              .skip(recentCount)
+              .take(previousCount)
+              .fold<double>(0, (sum, value) => sum + value) /
+          previousCount;
+
+      final change = previousAverage <= 0
+          ? null
+          : ((recentAverage - previousAverage) / previousAverage) * 100;
+
+      result.add(
+        _MuscleGroupEvolutionStat(
+          name: group,
+          currentVolume: recentAverage,
+          previousVolume: previousAverage,
+          changePercent: change,
+        ),
+      );
+    }
+
+    result.sort((a, b) {
+      final scoreA = a.changePercent ?? -9999;
+      final scoreB = b.changePercent ?? -9999;
+      return scoreB.compareTo(scoreA);
+    });
+
+    return result;
+  }
+
   double _averageDurationMinutes(List<WorkoutSessionSummary> sessions) {
     if (sessions.isEmpty) return 0;
 
@@ -272,16 +307,15 @@ class HistoryPage extends StatelessWidget {
     if (sessions.length < 6) return null;
 
     final recentAverage =
-        sessions.take(3).fold<double>(
-          0,
-          (sum, session) => sum + session.totalVolume,
-        ) /
+        sessions
+            .take(3)
+            .fold<double>(0, (sum, session) => sum + session.totalVolume) /
         3;
     final previousAverage =
-        sessions.skip(3).take(3).fold<double>(
-          0,
-          (sum, session) => sum + session.totalVolume,
-        ) /
+        sessions
+            .skip(3)
+            .take(3)
+            .fold<double>(0, (sum, session) => sum + session.totalVolume) /
         3;
 
     if (previousAverage <= 0) return null;
@@ -482,9 +516,9 @@ class _SessionGroupChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: AppThemeColors.textMuted,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AppThemeColors.textMuted),
       ),
     );
   }
@@ -511,101 +545,6 @@ class _SessionMetaChip extends StatelessWidget {
           fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
-      ),
-    );
-  }
-}
-
-class _SummaryPanel extends StatelessWidget {
-  final int totalWorkouts;
-  final double totalVolume;
-  final int totalSets;
-  final double averageVolume;
-  final double? recentVolumeChange;
-
-  const _SummaryPanel({
-    required this.totalWorkouts,
-    required this.totalVolume,
-    required this.totalSets,
-    required this.averageVolume,
-    required this.recentVolumeChange,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
-            AppThemeColors.surface.withValues(alpha: 0.94),
-          ],
-        ),
-        border: Border.all(color: AppThemeColors.outlineStrong),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Painel unificado', style: theme.textTheme.labelMedium),
-          const SizedBox(height: 10),
-          Text(
-            'Historico e progresso no mesmo painel.',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Volume, densidade e consistencia em uma unica leitura.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 12),
-          _MomentumBadge(change: recentVolumeChange),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryMetric(
-                  label: 'Treinos',
-                  value: '$totalWorkouts',
-                  accent: AppThemeColors.primaryStrong,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _SummaryMetric(
-                  label: 'Series',
-                  value: '$totalSets',
-                  accent: AppThemeColors.secondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryMetric(
-                  label: 'Volume',
-                  value: '${totalVolume.toStringAsFixed(0)} kg',
-                  accent: AppThemeColors.warning,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _SummaryMetric(
-                  label: 'Media',
-                  value: '${averageVolume.toStringAsFixed(0)} kg',
-                  accent: AppThemeColors.primary,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -639,7 +578,9 @@ class _MomentumBadge extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: hasChange ? tone.withValues(alpha: 0.18) : AppThemeColors.outline,
+          color: hasChange
+              ? tone.withValues(alpha: 0.18)
+              : AppThemeColors.outline,
         ),
       ),
       child: Row(
@@ -688,9 +629,9 @@ class _SummaryMetric extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: accent,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: accent),
           ),
         ],
       ),
@@ -804,9 +745,9 @@ class _HighlightCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             data.value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: data.accent,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: data.accent),
           ),
         ],
       ),
@@ -892,7 +833,9 @@ class _TrendChart extends StatelessWidget {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(18),
-          child: Text('Ainda nao ha treinos suficientes para montar o grafico.'),
+          child: Text(
+            'Ainda nao ha treinos suficientes para montar o grafico.',
+          ),
         ),
       );
     }
@@ -1096,6 +1039,576 @@ class _MuscleGroupStat {
     required this.maxWeight,
     required this.exerciseCount,
   });
+}
+
+class _MuscleGroupEvolutionStat {
+  final String name;
+  final double currentVolume;
+  final double previousVolume;
+  final double? changePercent;
+
+  const _MuscleGroupEvolutionStat({
+    required this.name,
+    required this.currentVolume,
+    required this.previousVolume,
+    required this.changePercent,
+  });
+
+  Color get color {
+    if (changePercent == null) {
+      return AppThemeColors.textSoft.withValues(alpha: 0.30);
+    }
+
+    final normalized = ((changePercent!.clamp(-80, 80)) + 80) / 160;
+    return Color.lerp(
+          const Color(0xFFE35D5D),
+          const Color(0xFF2FBF71),
+          normalized,
+        ) ??
+        AppThemeColors.primary;
+  }
+
+  String get changeLabel {
+    if (changePercent == null) return 'sem base';
+
+    final sign = changePercent! >= 0 ? '+' : '';
+    return '$sign${changePercent!.toStringAsFixed(0)}%';
+  }
+}
+
+class _MuscleBodyMapCard extends StatelessWidget {
+  final List<_MuscleGroupEvolutionStat> stats;
+
+  const _MuscleBodyMapCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final lookup = {
+      for (final stat in stats) _normalizeGroupName(stat.name): stat,
+    };
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Mapa corporal',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'A cor vai do vermelho ao verde conforme a evolucao recente de cada grupo.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 620;
+
+                final front = _BodyFigureCard(
+                  title: 'Frente',
+                  lookup: lookup,
+                  regions: const [
+                    _BodyRegionSpec(
+                      label: 'Peito',
+                      group: 'Peito',
+                      top: 88,
+                      left: 48,
+                      right: 48,
+                      height: 54,
+                      borderRadius: BorderRadius.all(Radius.circular(22)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Ombro',
+                      group: 'Ombro',
+                      top: 58,
+                      left: 22,
+                      right: 22,
+                      height: 34,
+                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Bíceps',
+                      group: 'Bíceps',
+                      top: 86,
+                      left: 4,
+                      width: 28,
+                      height: 92,
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                      rotateLabel: true,
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Bíceps',
+                      group: 'Bíceps',
+                      top: 86,
+                      right: 4,
+                      width: 28,
+                      height: 92,
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                      rotateLabel: true,
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Abdômen',
+                      group: 'Abdômen',
+                      top: 152,
+                      left: 56,
+                      right: 56,
+                      height: 64,
+                      borderRadius: BorderRadius.all(Radius.circular(22)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Pernas',
+                      group: 'Pernas',
+                      top: 226,
+                      left: 40,
+                      width: 38,
+                      height: 112,
+                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Pernas',
+                      group: 'Pernas',
+                      top: 226,
+                      right: 40,
+                      width: 38,
+                      height: 112,
+                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    ),
+                  ],
+                );
+
+                final back = _BodyFigureCard(
+                  title: 'Costas',
+                  lookup: lookup,
+                  regions: const [
+                    _BodyRegionSpec(
+                      label: 'Ombro',
+                      group: 'Ombro',
+                      top: 58,
+                      left: 22,
+                      right: 22,
+                      height: 34,
+                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Costas',
+                      group: 'Costas',
+                      top: 88,
+                      left: 48,
+                      right: 48,
+                      height: 78,
+                      borderRadius: BorderRadius.all(Radius.circular(22)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Tríceps',
+                      group: 'Tríceps',
+                      top: 88,
+                      left: 4,
+                      width: 28,
+                      height: 92,
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                      rotateLabel: true,
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Tríceps',
+                      group: 'Tríceps',
+                      top: 88,
+                      right: 4,
+                      width: 28,
+                      height: 92,
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                      rotateLabel: true,
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Pernas',
+                      group: 'Pernas',
+                      top: 226,
+                      left: 40,
+                      width: 38,
+                      height: 112,
+                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    ),
+                    _BodyRegionSpec(
+                      label: 'Pernas',
+                      group: 'Pernas',
+                      top: 226,
+                      right: 40,
+                      width: 38,
+                      height: 112,
+                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    ),
+                  ],
+                );
+
+                if (isWide) {
+                  return Row(
+                    children: [
+                      Expanded(child: front),
+                      const SizedBox(width: 12),
+                      Expanded(child: back),
+                    ],
+                  );
+                }
+
+                return Column(
+                  children: [front, const SizedBox(height: 12), back],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: const [
+                _EvolutionLegendChip(label: 'queda', color: Color(0xFFE35D5D)),
+                _EvolutionLegendChip(
+                  label: 'estavel',
+                  color: Color(0xFFF0C95C),
+                ),
+                _EvolutionLegendChip(
+                  label: 'evolucao',
+                  color: Color(0xFF2FBF71),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _buildSummaryText(lookup),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppThemeColors.textSoft),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _buildSummaryText(Map<String, _MuscleGroupEvolutionStat> lookup) {
+    final groups = [
+      'Peito',
+      'Costas',
+      'Ombro',
+      'Bíceps',
+      'Tríceps',
+      'Pernas',
+      'Abdômen',
+    ];
+
+    return groups
+        .map((group) {
+          final stat = lookup[_normalizeGroupName(group)];
+          if (stat == null) return '$group: sem dados';
+          return '$group ${stat.changeLabel}';
+        })
+        .join(' • ');
+  }
+}
+
+class _BodyFigureCard extends StatelessWidget {
+  final String title;
+  final Map<String, _MuscleGroupEvolutionStat> lookup;
+  final List<_BodyRegionSpec> regions;
+
+  const _BodyFigureCard({
+    required this.title,
+    required this.lookup,
+    required this.regions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppThemeColors.outline),
+      ),
+      child: Column(
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 14),
+          AspectRatio(
+            aspectRatio: 0.74,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final bodyWidth = constraints.maxWidth;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: bodyWidth * 0.18,
+                      right: bodyWidth * 0.18,
+                      top: bodyWidth * 0.02,
+                      child: Container(
+                        height: bodyWidth * 0.12,
+                        decoration: BoxDecoration(
+                          color: AppThemeColors.surfaceHigh.withValues(
+                            alpha: 0.96,
+                          ),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppThemeColors.outlineStrong,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: bodyWidth * 0.43,
+                      right: bodyWidth * 0.43,
+                      top: bodyWidth * 0.13,
+                      child: Container(
+                        height: bodyWidth * 0.05,
+                        decoration: BoxDecoration(
+                          color: AppThemeColors.surfaceHigh.withValues(
+                            alpha: 0.94,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: AppThemeColors.outlineStrong,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: bodyWidth * 0.34,
+                      right: bodyWidth * 0.34,
+                      top: bodyWidth * 0.18,
+                      child: Container(
+                        height: bodyWidth * 0.34,
+                        decoration: BoxDecoration(
+                          color: AppThemeColors.surfaceHigh.withValues(
+                            alpha: 0.94,
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: AppThemeColors.outlineStrong,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: bodyWidth * 0.08,
+                      top: bodyWidth * 0.21,
+                      child: _BodyLimbColumn(
+                        width: bodyWidth * 0.12,
+                        height: bodyWidth * 0.34,
+                        color: AppThemeColors.surfaceHigh.withValues(
+                          alpha: 0.94,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: bodyWidth * 0.08,
+                      top: bodyWidth * 0.21,
+                      child: _BodyLimbColumn(
+                        width: bodyWidth * 0.12,
+                        height: bodyWidth * 0.34,
+                        color: AppThemeColors.surfaceHigh.withValues(
+                          alpha: 0.94,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: bodyWidth * 0.38,
+                      right: bodyWidth * 0.38,
+                      top: bodyWidth * 0.54,
+                      child: Container(
+                        height: bodyWidth * 0.18,
+                        decoration: BoxDecoration(
+                          color: AppThemeColors.surfaceHigh.withValues(
+                            alpha: 0.94,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: AppThemeColors.outlineStrong,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: bodyWidth * 0.35,
+                      top: bodyWidth * 0.74,
+                      child: _BodyLimbColumn(
+                        width: bodyWidth * 0.12,
+                        height: bodyWidth * 0.34,
+                        color: AppThemeColors.surfaceHigh.withValues(
+                          alpha: 0.94,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: bodyWidth * 0.35,
+                      top: bodyWidth * 0.74,
+                      child: _BodyLimbColumn(
+                        width: bodyWidth * 0.12,
+                        height: bodyWidth * 0.34,
+                        color: AppThemeColors.surfaceHigh.withValues(
+                          alpha: 0.94,
+                        ),
+                      ),
+                    ),
+                    ...regions.map((region) {
+                      final stat = lookup[_normalizeGroupName(region.group)];
+                      final color =
+                          stat?.color ??
+                          AppThemeColors.textSoft.withValues(alpha: 0.24);
+
+                      return Positioned(
+                        left: region.left,
+                        top: region.top,
+                        right: region.right,
+                        width: region.width,
+                        child: _BodyRegionTile(
+                          label: region.label,
+                          color: color,
+                          height: region.height,
+                          borderRadius: region.borderRadius,
+                          changeLabel: stat?.changeLabel,
+                          rotateLabel: region.rotateLabel,
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BodyRegionSpec {
+  final String label;
+  final String group;
+  final double top;
+  final double? left;
+  final double? right;
+  final double? width;
+  final double height;
+  final BorderRadius borderRadius;
+  final bool rotateLabel;
+
+  const _BodyRegionSpec({
+    required this.label,
+    required this.group,
+    required this.top,
+    required this.height,
+    required this.borderRadius,
+    this.left,
+    this.right,
+    this.width,
+    this.rotateLabel = false,
+  });
+}
+
+class _BodyRegionTile extends StatelessWidget {
+  final String label;
+  final Color color;
+  final double height;
+  final BorderRadius borderRadius;
+  final String? changeLabel;
+  final bool rotateLabel;
+
+  const _BodyRegionTile({
+    required this.label,
+    required this.color,
+    required this.height,
+    required this.borderRadius,
+    required this.changeLabel,
+    required this.rotateLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = changeLabel == null ? label : '$label\n$changeLabel';
+
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: borderRadius,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(4),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: RotatedBox(
+          quarterTurns: rotateLabel ? 3 : 0,
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BodyLimbColumn extends StatelessWidget {
+  final double width;
+  final double height;
+  final Color color;
+
+  const _BodyLimbColumn({
+    required this.width,
+    required this.height,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppThemeColors.outlineStrong),
+      ),
+    );
+  }
+}
+
+class _EvolutionLegendChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _EvolutionLegendChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.38)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+String _normalizeGroupName(String name) {
+  return name.trim().toLowerCase();
 }
 
 class _MuscleGroupAccumulator {
