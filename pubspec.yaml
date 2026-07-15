@@ -33,6 +33,7 @@ flutter:
   
   assets:
     - assets/exercises/
+    - assets/body/
     
 flutter_launcher_icons:
   android: true
