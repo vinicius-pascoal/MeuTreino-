@@ -297,7 +297,7 @@ class _BodySvgSourceBundle {
     final lookup = {
       for (final stat in stats) _normalizeGroupName(stat.name): stat,
     };
-    final fallbackColor = AppThemeColors.textSoft.withValues(alpha: 0.30);
+    final fallbackColor = AppThemeColors.textSoft.withValues(alpha: 0.14);
 
     final front = await _renderFigure(
       svg: frontSvg,
@@ -313,12 +313,13 @@ class _BodySvgSourceBundle {
     final back = await _renderFigure(
       svg: backSvg,
       size: const Size(1024, 1536),
-      baseImageId: 'arte-base',
+      baseImageId: 'base-anatomica',
+      lineArtImageId: 'lineart',
       regions: _backRegions,
       lookup: lookup,
       fallbackColor: fallbackColor,
-      overlayBlendMode: BlendMode.color,
-      overlayOpacity: 1.0,
+      overlayBlendMode: BlendMode.srcOver,
+      overlayOpacity: 0.80,
     );
 
     return _RenderedBodyBundle(
@@ -375,33 +376,57 @@ const Map<String, _BodyRegionAsset> _frontRegions = {
 };
 
 const Map<String, _BodyRegionAsset> _backRegions = {
-  'trapezio': _BodyRegionAsset(maskId: 'mask-trapezio', groupName: 'Costas'),
-  'deltoides': _BodyRegionAsset(maskId: 'mask-deltoides', groupName: 'Ombro'),
-  'redondos-infraespinal': _BodyRegionAsset(
-    maskId: 'mask-redondos_infraespinal',
+  'deltoides': _BodyRegionAsset(
+    maskId: 'mascara-deltoides',
+    groupName: 'Ombro',
+  ),
+  'infraespinal-redondos': _BodyRegionAsset(
+    maskId: 'mascara-infraespinal-redondos',
     groupName: 'Costas',
   ),
-  'triceps': _BodyRegionAsset(maskId: 'mask-triceps', groupName: 'Triceps'),
-  'antebracos': _BodyRegionAsset(maskId: 'mask-antebracos'),
-  'latissimos-dorso': _BodyRegionAsset(
-    maskId: 'mask-latissimos',
+  'triceps': _BodyRegionAsset(
+    maskId: 'mascara-triceps',
+    groupName: 'Triceps',
+  ),
+  'bracos-laterais': _BodyRegionAsset(
+    maskId: 'mascara-bracos-laterais',
+    groupName: 'Triceps',
+  ),
+  'antebracos': _BodyRegionAsset(maskId: 'mascara-antebracos'),
+  'latissimos': _BodyRegionAsset(
+    maskId: 'mascara-latissimos',
     groupName: 'Costas',
   ),
   'eretores-espinha': _BodyRegionAsset(
-    maskId: 'mask-eretores_espinha',
+    maskId: 'mascara-eretores-espinha',
     groupName: 'Costas',
   ),
-  'gluteos': _BodyRegionAsset(maskId: 'mask-gluteos', groupName: 'Pernas'),
+  'lombares-laterais': _BodyRegionAsset(
+    maskId: 'mascara-lombares-laterais',
+    groupName: 'Costas',
+  ),
+  'trapezio': _BodyRegionAsset(
+    maskId: 'mascara-trapezio',
+    groupName: 'Costas',
+  ),
+  'gluteos': _BodyRegionAsset(
+    maskId: 'mascara-gluteos',
+    groupName: 'Pernas',
+  ),
+  'adutores-posteriores': _BodyRegionAsset(
+    maskId: 'mascara-adutores-posteriores',
+    groupName: 'Pernas',
+  ),
   'isquiotibiais': _BodyRegionAsset(
-    maskId: 'mask-isquiotibiais',
+    maskId: 'mascara-isquiotibiais',
+    groupName: 'Pernas',
+  ),
+  'posteriores-coxa': _BodyRegionAsset(
+    maskId: 'mascara-posteriores-coxa',
     groupName: 'Pernas',
   ),
   'panturrilhas': _BodyRegionAsset(
-    maskId: 'mask-panturrilhas',
-    groupName: 'Pernas',
-  ),
-  'aquiles-tendoes': _BodyRegionAsset(
-    maskId: 'mask-aquiles_tendoes',
+    maskId: 'mascara-panturrilhas',
     groupName: 'Pernas',
   ),
 };
@@ -438,12 +463,15 @@ Future<ui.Image> _renderFigure({
     final stat = entry.value.groupName == null
         ? null
         : lookup[_normalizeGroupName(entry.value.groupName!)];
-    final overlayColor = (stat?.color ?? fallbackColor).withValues(
-      alpha: overlayOpacity,
+    final overlayColor = _resolveOverlayColor(
+      stat: stat,
+      fallbackColor: fallbackColor,
+      overlayOpacity: overlayOpacity,
     );
     final maskImage = await _decodePng(
       _extractMaskImageData(svg, entry.value.maskId),
     );
+    final maskUsesAlpha = await _maskUsesAlpha(maskImage);
 
     canvas.saveLayer(bounds, Paint()..blendMode = overlayBlendMode);
     canvas.drawRect(bounds, Paint()..color = overlayColor);
@@ -456,7 +484,9 @@ Future<ui.Image> _renderFigure({
         maskImage.height.toDouble(),
       ),
       bounds,
-      Paint()..blendMode = BlendMode.dstIn,
+      Paint()
+        ..blendMode = BlendMode.dstIn
+        ..colorFilter = maskUsesAlpha ? null : _luminanceToAlphaMaskFilter,
     );
     canvas.restore();
 
@@ -497,6 +527,72 @@ Future<ui.Image> _decodePng(String base64Png) async {
   final frame = await codec.getNextFrame();
   return frame.image;
 }
+
+Color _resolveOverlayColor({
+  required MuscleBodyProgressStat? stat,
+  required Color fallbackColor,
+  required double overlayOpacity,
+}) {
+  if (stat == null) {
+    return fallbackColor;
+  }
+
+  final originalAlpha = _colorAlpha(stat.color);
+  final alpha = originalAlpha >= 0.99
+      ? overlayOpacity
+      : originalAlpha * overlayOpacity;
+  return stat.color.withValues(alpha: alpha);
+}
+
+double _colorAlpha(Color color) {
+  return ((color.value >> 24) & 0xff) / 255;
+}
+
+Future<bool> _maskUsesAlpha(ui.Image image) async {
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  if (byteData == null) {
+    return true;
+  }
+
+  final bytes = byteData.buffer.asUint8List();
+  var minAlpha = 255;
+  var maxAlpha = 0;
+
+  for (var index = 3; index < bytes.length; index += 4) {
+    final alpha = bytes[index];
+    if (alpha < minAlpha) minAlpha = alpha;
+    if (alpha > maxAlpha) maxAlpha = alpha;
+
+    if (minAlpha < 250 && maxAlpha > 5) {
+      return true;
+    }
+  }
+
+  return minAlpha != maxAlpha;
+}
+
+final ColorFilter _luminanceToAlphaMaskFilter = ColorFilter.matrix(<double>[
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0,
+]);
 
 String _extractImageDataById(String svg, String imageId) {
   final imagePattern = RegExp(
