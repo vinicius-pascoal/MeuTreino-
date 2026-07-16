@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -59,6 +61,13 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
   void dispose() {
     _renderedImages?.dispose();
     super.dispose();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _BodySvgSourceBundle.clearCache();
+    _renderMaps();
   }
 
   Future<void> _renderMaps() async {
@@ -284,6 +293,10 @@ class _BodySvgSourceBundle {
     return _cachedBundle ??= _loadBundle();
   }
 
+  static void clearCache() {
+    _cachedBundle = null;
+  }
+
   static Future<_BodySvgSourceBundle> _loadBundle() async {
     final assets = await Future.wait([
       rootBundle.loadString(_frontAssetPath),
@@ -309,6 +322,7 @@ class _BodySvgSourceBundle {
       fallbackColor: fallbackColor,
       overlayBlendMode: BlendMode.srcOver,
       overlayOpacity: 0.80,
+      masksUseLuminance: false,
     );
     final back = await _renderFigure(
       svg: backSvg,
@@ -320,6 +334,7 @@ class _BodySvgSourceBundle {
       fallbackColor: fallbackColor,
       overlayBlendMode: BlendMode.srcOver,
       overlayOpacity: 0.80,
+      masksUseLuminance: true,
     );
 
     return _RenderedBodyBundle(
@@ -441,6 +456,7 @@ Future<ui.Image> _renderFigure({
   required Color fallbackColor,
   required BlendMode overlayBlendMode,
   required double overlayOpacity,
+  required bool masksUseLuminance,
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -468,10 +484,10 @@ Future<ui.Image> _renderFigure({
       fallbackColor: fallbackColor,
       overlayOpacity: overlayOpacity,
     );
-    final maskImage = await _decodePng(
+    final maskImage = await _decodeMaskPng(
       _extractMaskImageData(svg, entry.value.maskId),
+      useLuminanceAlpha: masksUseLuminance,
     );
-    final maskUsesAlpha = await _maskUsesAlpha(maskImage);
 
     canvas.saveLayer(bounds, Paint()..blendMode = overlayBlendMode);
     canvas.drawRect(bounds, Paint()..color = overlayColor);
@@ -484,9 +500,7 @@ Future<ui.Image> _renderFigure({
         maskImage.height.toDouble(),
       ),
       bounds,
-      Paint()
-        ..blendMode = BlendMode.dstIn
-        ..colorFilter = maskUsesAlpha ? null : _luminanceToAlphaMaskFilter,
+      Paint()..blendMode = BlendMode.dstIn,
     );
     canvas.restore();
 
@@ -528,6 +542,83 @@ Future<ui.Image> _decodePng(String base64Png) async {
   return frame.image;
 }
 
+Future<ui.Image> _decodeMaskPng(
+  String base64Png, {
+  required bool useLuminanceAlpha,
+}) async {
+  final image = await _decodePng(base64Png);
+  if (!useLuminanceAlpha) {
+    return image;
+  }
+
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+
+  if (byteData == null) {
+    return image;
+  }
+
+  final bytes = byteData.buffer.asUint8List();
+  if (_maskHasUsefulAlpha(bytes)) {
+    return image;
+  }
+
+  final convertedBytes = Uint8List(bytes.length);
+  for (var index = 0; index < bytes.length; index += 4) {
+    final red = bytes[index];
+    final green = bytes[index + 1];
+    final blue = bytes[index + 2];
+    final sourceAlpha = bytes[index + 3];
+    final luminance = (red * 54 + green * 183 + blue * 19) ~/ 256;
+    final alpha = (luminance * sourceAlpha) ~/ 255;
+
+    convertedBytes[index] = 255;
+    convertedBytes[index + 1] = 255;
+    convertedBytes[index + 2] = 255;
+    convertedBytes[index + 3] = alpha;
+  }
+
+  final convertedImage = await _decodeRgbaImage(
+    convertedBytes,
+    width: image.width,
+    height: image.height,
+  );
+  image.dispose();
+  return convertedImage;
+}
+
+bool _maskHasUsefulAlpha(Uint8List bytes) {
+  var minAlpha = 255;
+  var maxAlpha = 0;
+
+  for (var index = 3; index < bytes.length; index += 4) {
+    final alpha = bytes[index];
+    if (alpha < minAlpha) minAlpha = alpha;
+    if (alpha > maxAlpha) maxAlpha = alpha;
+
+    if (minAlpha < 250 && maxAlpha > 5) {
+      return true;
+    }
+  }
+
+  return minAlpha != maxAlpha;
+}
+
+Future<ui.Image> _decodeRgbaImage(
+  Uint8List pixels, {
+  required int width,
+  required int height,
+}) {
+  final completer = Completer<ui.Image>();
+  ui.decodeImageFromPixels(
+    pixels,
+    width,
+    height,
+    ui.PixelFormat.rgba8888,
+    completer.complete,
+  );
+  return completer.future;
+}
+
 Color _resolveOverlayColor({
   required MuscleBodyProgressStat? stat,
   required Color fallbackColor,
@@ -547,52 +638,6 @@ Color _resolveOverlayColor({
 double _colorAlpha(Color color) {
   return ((color.value >> 24) & 0xff) / 255;
 }
-
-Future<bool> _maskUsesAlpha(ui.Image image) async {
-  final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-  if (byteData == null) {
-    return true;
-  }
-
-  final bytes = byteData.buffer.asUint8List();
-  var minAlpha = 255;
-  var maxAlpha = 0;
-
-  for (var index = 3; index < bytes.length; index += 4) {
-    final alpha = bytes[index];
-    if (alpha < minAlpha) minAlpha = alpha;
-    if (alpha > maxAlpha) maxAlpha = alpha;
-
-    if (minAlpha < 250 && maxAlpha > 5) {
-      return true;
-    }
-  }
-
-  return minAlpha != maxAlpha;
-}
-
-final ColorFilter _luminanceToAlphaMaskFilter = ColorFilter.matrix(<double>[
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0.2126,
-  0.7152,
-  0.0722,
-  0,
-  0,
-]);
 
 String _extractImageDataById(String svg, String imageId) {
   final imagePattern = RegExp(
