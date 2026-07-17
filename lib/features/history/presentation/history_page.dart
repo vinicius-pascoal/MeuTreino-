@@ -110,16 +110,15 @@ class HistoryPage extends StatelessWidget {
                     )
                   else
                     MuscleBodyProgressMapCard(
-                      stats:
-                          muscleMapStats
-                              .map(
-                                (stat) => MuscleBodyProgressStat(
-                                  name: stat.name,
-                                  color: stat.color,
-                                  changeLabel: stat.changeLabel,
-                                ),
-                              )
-                              .toList(),
+                      stats: muscleMapStats
+                          .map(
+                            (stat) => MuscleBodyProgressStat(
+                              name: stat.name,
+                              color: stat.color,
+                              changeLabel: stat.changeLabel,
+                            ),
+                          )
+                          .toList(),
                     ),
                   const SizedBox(height: 12),
                   _EvolutionInsightsPanel(
@@ -134,33 +133,6 @@ class HistoryPage extends StatelessWidget {
                     bestRecentSession: bestRecentSession,
                   ),
                   const SizedBox(height: 24),
-                  const AppSectionHeader(
-                    title: 'Historico',
-                    subtitle: 'Volume de cada treino em leitura compacta.',
-                  ),
-                  const SizedBox(height: 12),
-                  ...sessions.map((session) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _HistorySessionCard(
-                        session: session,
-                        sets: setsBySession[session.id] ?? const [],
-                        maxVolume: maxSessionVolume,
-                        onTap: () {
-                          unawaited(
-                            navigationStateService.pushTrackedPage(
-                              context: context,
-                              pageState: PersistedPageState.historyDetail(
-                                sessionId: session.id,
-                              ),
-                              builder: (_) =>
-                                  HistoryDetailPage(session: session),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  }),
                 ],
               );
             },
@@ -656,12 +628,6 @@ class _EvolutionInsightsPanel extends StatelessWidget {
         accent: AppThemeColors.primaryStrong,
       ),
       _InsightMetricData(
-        icon: Icons.monitor_weight_outlined,
-        label: 'Vol. medio',
-        value: '${averageVolume.toStringAsFixed(0)} kg',
-        accent: AppThemeColors.warning,
-      ),
-      _InsightMetricData(
         icon: Icons.format_list_numbered_rounded,
         label: 'Series',
         value: averageSets.toStringAsFixed(1),
@@ -733,10 +699,6 @@ class _EvolutionInsightsPanel extends StatelessWidget {
             _InsightMetricGrid(metrics: metrics),
             const SizedBox(height: 12),
             _MomentumBadge(change: recentVolumeChange),
-            if (bestRecentSession != null) ...[
-              const SizedBox(height: 10),
-              _BestSessionMini(session: bestRecentSession!),
-            ],
             const SizedBox(height: 14),
             LayoutBuilder(
               builder: (context, constraints) {
