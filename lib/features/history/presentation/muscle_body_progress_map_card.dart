@@ -107,66 +107,79 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final lookup = {
       for (final stat in widget.stats) _normalizeGroupName(stat.name): stat,
     };
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
+              AppThemeColors.surface.withValues(alpha: 0.96),
+              AppThemeColors.background.withValues(alpha: 0.82),
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Mapa corporal',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 6),
-            if (_isLoading)
-              const SizedBox(
-                height: 320,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null || _renderedImages == null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppThemeColors.outline),
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: AppThemeColors.primary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppThemeColors.primary.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.accessibility_new_rounded,
+                    color: AppThemeColors.primaryStrong,
+                  ),
                 ),
-                child: const Text('Nao foi possivel carregar o mapa corporal.'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Mapa corporal', style: theme.textTheme.titleLarge),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Comparativo recente por grupo muscular',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppThemeColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _BodyMapHeaderPill(count: widget.stats.length),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const _BodyMapLoadingStage()
+            else if (_error != null || _renderedImages == null)
+              const _BodyMapMessageStage(
+                icon: Icons.broken_image_outlined,
+                message: 'Nao foi possivel carregar o mapa corporal.',
               )
             else
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 620;
-                  final front = _BodyFigurePanel(
-                    title: 'Frente',
-                    image: _renderedImages!.front,
-                    aspectRatio: _renderedImages!.frontAspectRatio,
-                  );
-                  final back = _BodyFigurePanel(
-                    title: 'Costas',
-                    image: _renderedImages!.back,
-                    aspectRatio: _renderedImages!.backAspectRatio,
-                  );
-
-                  if (isWide) {
-                    return Row(
-                      children: [
-                        Expanded(child: front),
-                        const SizedBox(width: 12),
-                        Expanded(child: back),
-                      ],
-                    );
-                  }
-
-                  return Column(
-                    children: [front, const SizedBox(height: 12), back],
-                  );
-                },
+              _BodyMapStage(
+                frontImage: _renderedImages!.front,
+                backImage: _renderedImages!.back,
+                frontAspectRatio: _renderedImages!.frontAspectRatio,
+                backAspectRatio: _renderedImages!.backAspectRatio,
               ),
             const SizedBox(height: 16),
             Wrap(
@@ -184,12 +197,142 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+            _MuscleGroupSummaryWrap(lookup: lookup),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BodyMapHeaderPill extends StatelessWidget {
+  final int count;
+
+  const _BodyMapHeaderPill({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppThemeColors.outline),
+      ),
+      child: Text(
+        '$count grupos',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppThemeColors.primaryStrong,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _BodyMapStage extends StatelessWidget {
+  final ui.Image frontImage;
+  final ui.Image backImage;
+  final double frontAspectRatio;
+  final double backAspectRatio;
+
+  const _BodyMapStage({
+    required this.frontImage,
+    required this.backImage,
+    required this.frontAspectRatio,
+    required this.backAspectRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 620;
+        final height = isWide ? 440.0 : 330.0;
+        final horizontalPadding = isWide ? 28.0 : 12.0;
+        final gap = isWide ? 24.0 : 8.0;
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 18,
+          ),
+          decoration: _bodyMapStageDecoration(),
+          child: SizedBox(
+            height: height,
+            child: Stack(
+              children: [
+                const Positioned.fill(
+                  child: CustomPaint(painter: _BodyMapBackdropPainter()),
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _BodyFigurePanel(
+                        title: 'Frente',
+                        image: frontImage,
+                        aspectRatio: frontAspectRatio,
+                      ),
+                    ),
+                    SizedBox(width: gap),
+                    Expanded(
+                      child: _BodyFigurePanel(
+                        title: 'Costas',
+                        image: backImage,
+                        aspectRatio: backAspectRatio,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BodyMapLoadingStage extends StatelessWidget {
+  const _BodyMapLoadingStage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 330,
+      width: double.infinity,
+      decoration: _bodyMapStageDecoration(),
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _BodyMapMessageStage extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _BodyMapMessageStage({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 260,
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _bodyMapStageDecoration(),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppThemeColors.textSoft, size: 30),
             const SizedBox(height: 12),
             Text(
-              _buildSummaryText(lookup),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppThemeColors.textSoft),
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ),
@@ -211,24 +354,152 @@ class _BodyFigurePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppThemeColors.background.withValues(alpha: 0.42),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: aspectRatio,
+              child: RawImage(
+                image: image,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BodyMapBackdropPainter extends CustomPainter {
+  const _BodyMapBackdropPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.035)
+      ..strokeWidth = 1;
+    final axisPaint = Paint()
+      ..color = AppThemeColors.primary.withValues(alpha: 0.10)
+      ..strokeWidth = 1.2;
+    final floorPaint = Paint()
+      ..color = AppThemeColors.primaryStrong.withValues(alpha: 0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+
+    for (var index = 1; index < 5; index += 1) {
+      final y = size.height * index / 5;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      axisPaint,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height * 0.88),
+        width: size.width * 0.62,
+        height: size.height * 0.14,
+      ),
+      floorPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BodyMapBackdropPainter oldDelegate) => false;
+}
+
+class _MuscleGroupSummaryWrap extends StatelessWidget {
+  final Map<String, MuscleBodyProgressStat> lookup;
+
+  const _MuscleGroupSummaryWrap({required this.lookup});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _summaryGroups.map((group) {
+        return _MuscleChangeChip(
+          group: group,
+          stat: lookup[_normalizeGroupName(group)],
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _MuscleChangeChip extends StatelessWidget {
+  final String group;
+  final MuscleBodyProgressStat? stat;
+
+  const _MuscleChangeChip({required this.group, required this.stat});
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = stat?.color ?? AppThemeColors.textSoft;
+    final label = stat?.changeLabel ?? 'sem dados';
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppThemeColors.outline),
+        color: tone.withValues(alpha: stat == null ? 0.07 : 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: tone.withValues(alpha: stat == null ? 0.12 : 0.26),
+        ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 14),
-          AspectRatio(
-            aspectRatio: aspectRatio,
-            child: RawImage(
-              image: image,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
+          Text(
+            group,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: tone,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -251,15 +522,51 @@ class _EvolutionLegendChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.38)),
       ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+BoxDecoration _bodyMapStageDecoration() {
+  return BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Colors.white.withValues(alpha: 0.075),
+        AppThemeColors.surfaceHigh.withValues(alpha: 0.26),
+        AppThemeColors.background.withValues(alpha: 0.30),
+      ],
+    ),
+    borderRadius: BorderRadius.circular(24),
+    border: Border.all(
+      color: AppThemeColors.outlineStrong.withValues(alpha: 0.72),
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.16),
+        blurRadius: 24,
+        offset: const Offset(0, 18),
+      ),
+    ],
+  );
 }
 
 class _RenderedBodyBundle {
@@ -355,6 +662,16 @@ class _BodyRegionAsset {
 
 const String _frontAssetPath = 'assets/body/corpo_humano_frente_editavel.svg';
 const String _backAssetPath = 'assets/body/corpo_humano_posterior_editavel.svg';
+
+const List<String> _summaryGroups = [
+  'Peito',
+  'Costas',
+  'Ombro',
+  'Biceps',
+  'Triceps',
+  'Pernas',
+  'Abdomen',
+];
 
 const Map<String, _BodyRegionAsset> _frontRegions = {
   'pescoco': _BodyRegionAsset(maskId: 'mascara-pescoco'),
@@ -673,28 +990,6 @@ String _buildStatsSignature(List<MuscleBodyProgressStat> stats) {
             '${_normalizeGroupName(stat.name)}:${stat.color.value}:${stat.changeLabel}',
       )
       .join('|');
-}
-
-String _buildSummaryText(Map<String, MuscleBodyProgressStat> lookup) {
-  const groups = [
-    'Peito',
-    'Costas',
-    'Ombro',
-    'Biceps',
-    'Triceps',
-    'Pernas',
-    'Abdomen',
-  ];
-
-  return groups
-      .map((group) {
-        final stat = lookup[_normalizeGroupName(group)];
-        if (stat == null) {
-          return '$group: sem dados';
-        }
-        return '$group ${stat.changeLabel}';
-      })
-      .join(' | ');
 }
 
 String _normalizeGroupName(String name) {
