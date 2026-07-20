@@ -151,141 +151,117 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 118),
         children: [
-          const Text(
-            'Escolha os grupos musculares',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          _AutomationSummaryCard(
+            selectedGroups: _selectedGroups.length,
+            estimatedExercises: _estimatedExerciseCount,
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'O app busca exercicios da biblioteca e monta um treino equilibrado para cada grupo selecionado.',
-            style: TextStyle(color: Colors.white70),
+          const SizedBox(height: 10),
+          _MuscleGroupsCard(
+            availableGroups: _availableGroups,
+            selectedGroups: _selectedGroups,
+            exercisesPerGroup: _exercisesPerGroup,
+            onToggleGroup: _toggleGroup,
+            onGroupCountChanged: _updateGroupExerciseCount,
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _availableGroups.map((group) {
-              final selected = _selectedGroups.contains(group);
-
-              return FilterChip(
-                label: Text(group),
-                selected: selected,
-                onSelected: (_) => _toggleGroup(group),
-              );
-            }).toList(),
+          const SizedBox(height: 10),
+          _WorkoutIdentityCard(
+            nameController: _nameController,
+            descriptionController: _descriptionController,
+            onUseSuggestedName: _useSuggestedName,
           ),
-          const SizedBox(height: 18),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _useSuggestedName,
-              icon: const Icon(Icons.lightbulb),
-              label: const Text('Usar nome sugerido'),
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nome do treino',
-              hintText: 'Ex: Treino Costas e B\u00edceps',
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Descricao',
-              hintText: 'Ex: Treino gerado automaticamente',
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Quantidade por grupo',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 14),
-          if (_selectedGroups.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Selecione um ou mais grupos para definir quantos exercicios cada um tera.',
-                ),
-              ),
-            )
-          else
-            ..._selectedGroups.map(
-              (group) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _NumberSelector(
-                  title: group,
-                  value: _exercisesPerGroup[group] ?? 2,
-                  min: 1,
-                  max: 8,
-                  onChanged: (value) => _updateGroupExerciseCount(group, value),
-                ),
-              ),
-            ),
-          const SizedBox(height: 12),
-          const Text(
-            'Configuracao dos exercicios',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 14),
-          _NumberSelector(
-            title: 'Series por exercicio',
-            value: _sets,
-            min: 1,
-            max: 6,
-            onChanged: (value) {
+          const SizedBox(height: 10),
+          _ExerciseDefaultsCard(
+            sets: _sets,
+            restSeconds: _restSeconds,
+            repsController: _repsController,
+            weightController: _weightController,
+            onSetsChanged: (value) {
               setState(() {
                 _sets = value;
               });
             },
-          ),
-          const SizedBox(height: 12),
-          _NumberSelector(
-            title: 'Descanso em segundos',
-            value: _restSeconds,
-            min: 30,
-            max: 180,
-            step: 15,
-            onChanged: (value) {
+            onRestChanged: (value) {
               setState(() {
                 _restSeconds = value;
               });
             },
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _repsController,
-            decoration: const InputDecoration(
-              labelText: 'Repeticoes',
-              hintText: 'Ex: 8-10',
-            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AutomationSummaryCard extends StatelessWidget {
+  final int selectedGroups;
+  final int estimatedExercises;
+
+  const _AutomationSummaryCard({
+    required this.selectedGroups,
+    required this.estimatedExercises,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSelection = selectedGroups > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1B2940), Color(0xFF101827)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF243041)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _weightController,
-            decoration: const InputDecoration(
-              labelText: 'Carga inicial',
-              suffixText: 'kg',
-            ),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 24),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                _selectedGroups.isEmpty
-                    ? 'Selecione os grupos musculares para visualizar a previsao.'
-                    : 'Previsao: ate $_estimatedExerciseCount exercicios no treino.',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.22),
               ),
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: Color(0xFF86EFAC),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Treino automatico',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasSelection
+                      ? '$selectedGroups grupos - ate $estimatedExercises exercicios'
+                      : 'Selecione os grupos e ajuste os padroes.',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -294,20 +270,384 @@ class _AutoWorkoutPageState extends State<AutoWorkoutPage> {
   }
 }
 
-class _NumberSelector extends StatelessWidget {
+class _MuscleGroupsCard extends StatelessWidget {
+  final List<String> availableGroups;
+  final List<String> selectedGroups;
+  final Map<String, int> exercisesPerGroup;
+  final ValueChanged<String> onToggleGroup;
+  final void Function(String group, int value) onGroupCountChanged;
+
+  const _MuscleGroupsCard({
+    required this.availableGroups,
+    required this.selectedGroups,
+    required this.exercisesPerGroup,
+    required this.onToggleGroup,
+    required this.onGroupCountChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _CompactSectionHeader(
+              icon: Icons.sports_gymnastics_rounded,
+              title: 'Grupos musculares',
+              subtitle: 'Toque para incluir no treino',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: availableGroups.map((group) {
+                final selected = selectedGroups.contains(group);
+
+                return FilterChip(
+                  label: Text(group),
+                  selected: selected,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => onToggleGroup(group),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+            if (selectedGroups.isEmpty)
+              const _MutedHint(
+                icon: Icons.touch_app_rounded,
+                text: 'Escolha ao menos um grupo para liberar as quantidades.',
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: selectedGroups.map((group) {
+                  return _GroupQuantityPill(
+                    group: group,
+                    value: exercisesPerGroup[group] ?? 2,
+                    onChanged: (value) => onGroupCountChanged(group, value),
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutIdentityCard extends StatelessWidget {
+  final TextEditingController nameController;
+  final TextEditingController descriptionController;
+  final VoidCallback onUseSuggestedName;
+
+  const _WorkoutIdentityCard({
+    required this.nameController,
+    required this.descriptionController,
+    required this.onUseSuggestedName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: _CompactSectionHeader(
+                    icon: Icons.edit_note_rounded,
+                    title: 'Identificacao',
+                    subtitle: 'Nome e descricao do treino',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: onUseSuggestedName,
+                  icon: const Icon(Icons.lightbulb_outline_rounded, size: 18),
+                  label: const Text('Sugerir'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _DenseTextField(
+              controller: nameController,
+              label: 'Nome',
+              hint: 'Ex: Costas e biceps',
+            ),
+            const SizedBox(height: 10),
+            _DenseTextField(
+              controller: descriptionController,
+              label: 'Descricao',
+              hint: 'Treino gerado automaticamente',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExerciseDefaultsCard extends StatelessWidget {
+  final int sets;
+  final int restSeconds;
+  final TextEditingController repsController;
+  final TextEditingController weightController;
+  final ValueChanged<int> onSetsChanged;
+  final ValueChanged<int> onRestChanged;
+
+  const _ExerciseDefaultsCard({
+    required this.sets,
+    required this.restSeconds,
+    required this.repsController,
+    required this.weightController,
+    required this.onSetsChanged,
+    required this.onRestChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _CompactSectionHeader(
+              icon: Icons.tune_rounded,
+              title: 'Padroes dos exercicios',
+              subtitle: 'Series, descanso, reps e carga',
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final itemWidth = (constraints.maxWidth - 10) / 2;
+
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: itemWidth,
+                      child: _CompactNumberSelector(
+                        title: 'Series',
+                        value: sets,
+                        min: 1,
+                        max: 6,
+                        onChanged: onSetsChanged,
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _CompactNumberSelector(
+                        title: 'Descanso',
+                        value: restSeconds,
+                        min: 30,
+                        max: 180,
+                        step: 15,
+                        suffix: 's',
+                        onChanged: onRestChanged,
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _DenseTextField(
+                        controller: repsController,
+                        label: 'Reps',
+                        hint: '8-10',
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _DenseTextField(
+                        controller: weightController,
+                        label: 'Carga',
+                        suffix: 'kg',
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _CompactSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Icon(icon, size: 18, color: const Color(0xFF86EFAC)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white60, fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MutedHint extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _MutedHint({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.white60),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupQuantityPill extends StatelessWidget {
+  final String group;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _GroupQuantityPill({
+    required this.group,
+    required this.value,
+    required this.onChanged,
+  });
+
+  void _decrease() {
+    if (value <= 1) return;
+    onChanged(value - 1);
+  }
+
+  void _increase() {
+    if (value >= 8) return;
+    onChanged(value + 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 7, 7, 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            group,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+          ),
+          const SizedBox(width: 8),
+          _MiniStepButton(
+            icon: Icons.remove_rounded,
+            onPressed: value <= 1 ? null : _decrease,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            child: Text(
+              '$value',
+              style: const TextStyle(
+                color: Color(0xFF86EFAC),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          _MiniStepButton(
+            icon: Icons.add_rounded,
+            onPressed: value >= 8 ? null : _increase,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactNumberSelector extends StatelessWidget {
   final String title;
   final int value;
   final int min;
   final int max;
   final int step;
+  final String suffix;
   final ValueChanged<int> onChanged;
 
-  const _NumberSelector({
+  const _CompactNumberSelector({
     required this.title,
     required this.value,
     required this.min,
     required this.max,
     this.step = 1,
+    this.suffix = '',
     required this.onChanged,
   });
 
@@ -329,22 +669,105 @@ class _NumberSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text('$value'),
-        trailing: Wrap(
-          spacing: 8,
-          children: [
-            IconButton(
-              onPressed: value <= min ? null : _decrease,
-              icon: const Icon(Icons.remove),
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
             ),
-            IconButton(
-              onPressed: value >= max ? null : _increase,
-              icon: const Icon(Icons.add),
+          ),
+          _MiniStepButton(
+            icon: Icons.remove_rounded,
+            onPressed: value <= min ? null : _decrease,
+          ),
+          SizedBox(
+            width: 44,
+            child: Text(
+              '$value$suffix',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF86EFAC),
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ],
+          ),
+          _MiniStepButton(
+            icon: Icons.add_rounded,
+            onPressed: value >= max ? null : _increase,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStepButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _MiniStepButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 17),
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.white.withValues(alpha: 0.04),
+          disabledBackgroundColor: Colors.white.withValues(alpha: 0.02),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DenseTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? hint;
+  final String? suffix;
+  final TextInputType? keyboardType;
+
+  const _DenseTextField({
+    required this.controller,
+    required this.label,
+    this.hint,
+    this.suffix,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        isDense: true,
+        labelText: label,
+        hintText: hint,
+        suffixText: suffix,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 13,
         ),
       ),
     );
