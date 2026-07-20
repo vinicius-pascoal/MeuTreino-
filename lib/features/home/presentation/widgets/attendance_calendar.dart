@@ -11,6 +11,7 @@ class AttendanceCalendar extends StatelessWidget {
   final Set<int> expectedWeekDays;
   final DateTime? trackingStartDate;
   final bool isMonthDataReady;
+  final bool compact;
 
   const AttendanceCalendar({
     super.key,
@@ -20,17 +21,8 @@ class AttendanceCalendar extends StatelessWidget {
     required this.expectedWeekDays,
     required this.trackingStartDate,
     required this.isMonthDataReady,
+    this.compact = false,
   });
-
-  static const _weekLabels = [
-    'Seg',
-    'Ter',
-    'Qua',
-    'Qui',
-    'Sex',
-    'Sab',
-    'Dom',
-  ];
 
   DateTime _monthAnchor(DateTime date) {
     return DateTime(date.year, date.month, 1);
@@ -88,8 +80,6 @@ class AttendanceCalendar extends StatelessWidget {
         borderColor: AppThemeColors.primary.withValues(alpha: 0.3),
         textColor: AppThemeColors.primaryStrong,
         fontWeight: FontWeight.w800,
-        showDot: true,
-        dotColor: AppThemeColors.primaryStrong,
         inCurrentMonth: true,
       );
     }
@@ -140,77 +130,50 @@ class AttendanceCalendar extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Frequencia do mes',
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _capitalize(monthLabel),
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
-                ),
-                _CalendarNavButton(
-                  tooltip: 'Mes anterior',
-                  icon: Icons.chevron_left_rounded,
-                  onTap: _goToPreviousMonth,
-                ),
-                const SizedBox(width: 8),
-                _CalendarNavButton(
-                  tooltip: 'Proximo mes',
-                  icon: Icons.chevron_right_rounded,
-                  onTap: _goToNextMonth,
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: _weekLabels.map((label) {
-                return Expanded(
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppThemeColors.textMuted,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 10),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: days.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.9,
-              ),
-              itemBuilder: (context, index) {
-                final day = days[index];
-                final style = _resolveStyle(day);
+        padding: EdgeInsets.fromLTRB(
+          compact ? 13 : 16,
+          compact ? 12 : 16,
+          compact ? 13 : 16,
+          compact ? 12 : 14,
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final boundedHeight =
+                constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+            final compactCalendar =
+                compact || (boundedHeight && constraints.maxHeight < 330);
+            final headerGap = compactCalendar ? 9.0 : 14.0;
+            final weekdayGap = compactCalendar ? 6.0 : 9.0;
 
-                return _CalendarDayCell(day: day, style: style);
-              },
-            ),
-          ],
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _CalendarHeader(
+                  monthLabel: _capitalize(monthLabel),
+                  compact: compactCalendar,
+                  onPreviousMonth: _goToPreviousMonth,
+                  onNextMonth: _goToNextMonth,
+                ),
+                SizedBox(height: headerGap),
+                _WeekdayLabels(compact: compactCalendar),
+                SizedBox(height: weekdayGap),
+                if (boundedHeight)
+                  Expanded(
+                    child: _AdaptiveCalendarGrid(
+                      days: days,
+                      compact: compactCalendar,
+                      resolveStyle: _resolveStyle,
+                    ),
+                  )
+                else
+                  _NaturalCalendarGrid(
+                    days: days,
+                    compact: compactCalendar,
+                    resolveStyle: _resolveStyle,
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -222,35 +185,241 @@ class AttendanceCalendar extends StatelessWidget {
   }
 }
 
+class _CalendarHeader extends StatelessWidget {
+  final String monthLabel;
+  final bool compact;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+
+  const _CalendarHeader({
+    required this.monthLabel,
+    required this.compact,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Frequencia do mes',
+                style: theme.textTheme.labelMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: compact ? 3 : 5),
+              Text(
+                monthLabel,
+                style: compact
+                    ? theme.textTheme.titleMedium
+                    : theme.textTheme.titleLarge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        _CalendarNavButton(
+          tooltip: 'Mes anterior',
+          icon: Icons.chevron_left_rounded,
+          onTap: onPreviousMonth,
+          compact: compact,
+        ),
+        SizedBox(width: compact ? 6 : 8),
+        _CalendarNavButton(
+          tooltip: 'Proximo mes',
+          icon: Icons.chevron_right_rounded,
+          onTap: onNextMonth,
+          compact: compact,
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekdayLabels extends StatelessWidget {
+  final bool compact;
+
+  const _WeekdayLabels({required this.compact});
+
+  static const _weekLabels = [
+    'Seg',
+    'Ter',
+    'Qua',
+    'Qui',
+    'Sex',
+    'Sab',
+    'Dom',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: _weekLabels.map((label) {
+        return Expanded(
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppThemeColors.textMuted,
+                fontWeight: FontWeight.w700,
+                fontSize: compact ? 10 : 12,
+                height: 1,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+typedef _CalendarStyleResolver = _CalendarDayStyle Function(DateTime day);
+
+class _AdaptiveCalendarGrid extends StatelessWidget {
+  final List<DateTime> days;
+  final bool compact;
+  final _CalendarStyleResolver resolveStyle;
+
+  const _AdaptiveCalendarGrid({
+    required this.days,
+    required this.compact,
+    required this.resolveStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = compact ? 4.0 : 6.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellWidth = (constraints.maxWidth - (spacing * 6)) / 7;
+        final rawCellHeight = (constraints.maxHeight - (spacing * 5)) / 6;
+        final cellHeight = rawCellHeight.clamp(20.0, compact ? 48.0 : 56.0);
+        final childAspectRatio = cellWidth / cellHeight;
+
+        return _CalendarGrid(
+          days: days,
+          compact: compact,
+          spacing: spacing,
+          childAspectRatio: childAspectRatio,
+          resolveStyle: resolveStyle,
+        );
+      },
+    );
+  }
+}
+
+class _NaturalCalendarGrid extends StatelessWidget {
+  final List<DateTime> days;
+  final bool compact;
+  final _CalendarStyleResolver resolveStyle;
+
+  const _NaturalCalendarGrid({
+    required this.days,
+    required this.compact,
+    required this.resolveStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = compact ? 4.0 : 8.0;
+
+    return _CalendarGrid(
+      days: days,
+      compact: compact,
+      spacing: spacing,
+      childAspectRatio: compact ? 1.05 : 0.9,
+      shrinkWrap: true,
+      resolveStyle: resolveStyle,
+    );
+  }
+}
+
+class _CalendarGrid extends StatelessWidget {
+  final List<DateTime> days;
+  final bool compact;
+  final double spacing;
+  final double childAspectRatio;
+  final bool shrinkWrap;
+  final _CalendarStyleResolver resolveStyle;
+
+  const _CalendarGrid({
+    required this.days,
+    required this.compact,
+    required this.spacing,
+    required this.childAspectRatio,
+    required this.resolveStyle,
+    this.shrinkWrap = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: EdgeInsets.zero,
+      shrinkWrap: shrinkWrap,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: days.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 7,
+        mainAxisSpacing: spacing,
+        crossAxisSpacing: spacing,
+        childAspectRatio: childAspectRatio,
+      ),
+      itemBuilder: (context, index) {
+        final day = days[index];
+        final style = resolveStyle(day);
+
+        return _CalendarDayCell(
+          day: day,
+          style: style,
+          compact: compact,
+        );
+      },
+    );
+  }
+}
+
 class _CalendarNavButton extends StatelessWidget {
   final String tooltip;
   final IconData icon;
   final VoidCallback onTap;
+  final bool compact;
 
   const _CalendarNavButton({
     required this.tooltip,
     required this.icon,
     required this.onTap,
+    required this.compact,
   });
 
   @override
   Widget build(BuildContext context) {
+    final size = compact ? 36.0 : 42.0;
+
     return Tooltip(
       message: tooltip,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           child: Ink(
-            width: 42,
-            height: 42,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppThemeColors.outline),
             ),
-            child: Icon(icon, color: Colors.white),
+            child: Icon(icon, color: Colors.white, size: compact ? 20 : 24),
           ),
         ),
       ),
@@ -261,8 +430,13 @@ class _CalendarNavButton extends StatelessWidget {
 class _CalendarDayCell extends StatelessWidget {
   final DateTime day;
   final _CalendarDayStyle style;
+  final bool compact;
 
-  const _CalendarDayCell({required this.day, required this.style});
+  const _CalendarDayCell({
+    required this.day,
+    required this.style,
+    required this.compact,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +445,7 @@ class _CalendarDayCell extends StatelessWidget {
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         color: style.backgroundColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(compact ? 11 : 14),
         border: Border.all(color: style.borderColor),
       ),
       child: Stack(
@@ -281,19 +455,21 @@ class _CalendarDayCell extends StatelessWidget {
               '${day.day}',
               style: TextStyle(
                 color: style.textColor,
+                fontSize: compact ? 12 : 14,
                 fontWeight: style.fontWeight,
+                height: 1,
               ),
             ),
           ),
           if (style.showDot)
             Positioned(
-              bottom: 7,
+              bottom: compact ? 4 : 6,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
-                  width: 6,
-                  height: 6,
+                  width: compact ? 5 : 6,
+                  height: compact ? 5 : 6,
                   decoration: BoxDecoration(
                     color: style.dotColor,
                     shape: BoxShape.circle,

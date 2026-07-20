@@ -310,122 +310,99 @@ class _HomePageState extends State<HomePage>
                   body: AppBackground(
                     child: SafeArea(
                       bottom: false,
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 140),
-                        children: [
-                          _HomeTopBar(onLogout: _logout),
-                          const SizedBox(height: 26),
-                          _TodayWorkoutCard(
-                            workout: currentWorkout,
-                            trainedToday: trainedToday,
-                            isSkippingWorkout: _skippingWorkout,
-                            showSkipAction: canSkipWorkout,
-                            onConfigure: () =>
-                                _openPage(
-                                  page: const WorkoutPlanPage(),
-                                  pageState:
-                                      const PersistedPageState.workoutPlan(),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compactHeight = constraints.maxHeight < 740;
+                          final compactWidth = constraints.maxWidth < 360;
+                          final compactLayout = compactHeight || compactWidth;
+                          final horizontalPadding = compactWidth ? 14.0 : 20.0;
+                          final bottomPadding = compactHeight ? 116.0 : 132.0;
+                          final verticalGap = compactLayout ? 8.0 : 12.0;
+
+                          return Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              horizontalPadding,
+                              compactLayout ? 10 : 16,
+                              horizontalPadding,
+                              bottomPadding,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _HomeTopBar(onLogout: _logout),
+                                SizedBox(height: compactLayout ? 10 : 16),
+                                _TodayWorkoutCard(
+                                  workout: currentWorkout,
+                                  trainedToday: trainedToday,
+                                  isSkippingWorkout: _skippingWorkout,
+                                  showSkipAction: canSkipWorkout,
+                                  compact: compactLayout,
+                                  onConfigure: () => _openPage(
+                                    page: const WorkoutPlanPage(),
+                                    pageState:
+                                        const PersistedPageState.workoutPlan(),
+                                  ),
+                                  onStart: currentWorkout == null
+                                      ? null
+                                      : _skippingWorkout
+                                      ? null
+                                      : () => _startWorkout(currentWorkout!),
+                                  onSkip: canSkipWorkout && !_skippingWorkout
+                                      ? () => _skipWorkout(currentWorkout!)
+                                      : null,
                                 ),
-                            onStart: currentWorkout == null
-                                ? null
-                                : _skippingWorkout
-                                ? null
-                                : () => _startWorkout(currentWorkout!),
-                            onSkip: canSkipWorkout && !_skippingWorkout
-                                ? () => _skipWorkout(currentWorkout!)
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final isCompact = constraints.maxWidth < 320;
-                              final itemWidth = isCompact
-                                  ? (constraints.maxWidth - 12) / 2
-                                  : (constraints.maxWidth - 24) / 3;
+                                SizedBox(height: verticalGap),
+                                _MetricsStrip(
+                                  sessionsCount: sessions.length,
+                                  expectedDays: expectedDays,
+                                  attendanceRate: attendanceRate,
+                                  compact: compactLayout,
+                                ),
+                                SizedBox(height: verticalGap),
+                                Expanded(
+                                  child: AttendanceCalendar(
+                                    visibleMonth: _visibleMonth,
+                                    completedDateKeys: completedDateKeys,
+                                    expectedWeekDays:
+                                        plan?.trainingWeekDays.toSet() ??
+                                        const <int>{},
+                                    trackingStartDate: trackingStartDate,
+                                    isMonthDataReady:
+                                        planSnapshot.connectionState !=
+                                            ConnectionState.waiting &&
+                                        (sessionsSnapshot.hasData ||
+                                            _sessionCacheByMonth.containsKey(
+                                              currentMonthKey,
+                                            )),
+                                    compact: compactLayout,
+                                    onMonthChanged: (nextMonth) {
+                                      final nextVisibleMonth = _monthAnchor(
+                                        nextMonth,
+                                      );
+                                      final monthChanged =
+                                          nextVisibleMonth.year !=
+                                              _visibleMonth.year ||
+                                          nextVisibleMonth.month !=
+                                              _visibleMonth.month;
 
-                              return Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  SizedBox(
-                                    width: itemWidth,
-                                    child: _MetricCard(
-                                      label: 'No mes',
-                                      value: '${sessions.length}',
-                                      accent: AppThemeColors.primary,
-                                    ),
+                                      setState(() {
+                                        _visibleMonth = nextVisibleMonth;
+                                        if (monthChanged) {
+                                          _sessionsStream =
+                                              _buildSessionsStream(
+                                                nextVisibleMonth,
+                                              );
+                                        }
+                                      });
+                                    },
                                   ),
-                                  SizedBox(
-                                    width: itemWidth,
-                                    child: _MetricCard(
-                                      label: 'Meta',
-                                      value: '$expectedDays',
-                                      accent: AppThemeColors.secondary,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: itemWidth,
-                                    child: _MetricCard(
-                                      label: 'Ritmo',
-                                      value: '$attendanceRate%',
-                                      accent: AppThemeColors.warning,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 28),
-                          AttendanceCalendar(
-                            visibleMonth: _visibleMonth,
-                            completedDateKeys: completedDateKeys,
-                            expectedWeekDays:
-                                plan?.trainingWeekDays.toSet() ??
-                                const <int>{},
-                            trackingStartDate: trackingStartDate,
-                            isMonthDataReady:
-                                planSnapshot.connectionState !=
-                                    ConnectionState.waiting &&
-                                (sessionsSnapshot.hasData ||
-                                    _sessionCacheByMonth.containsKey(
-                                      currentMonthKey,
-                                    )),
-                            onMonthChanged: (nextMonth) {
-                              final nextVisibleMonth = _monthAnchor(nextMonth);
-                              final monthChanged =
-                                  nextVisibleMonth.year != _visibleMonth.year ||
-                                  nextVisibleMonth.month != _visibleMonth.month;
-
-                              setState(() {
-                                _visibleMonth = nextVisibleMonth;
-                                if (monthChanged) {
-                                  _sessionsStream = _buildSessionsStream(
-                                    nextVisibleMonth,
-                                  );
-                                }
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          const Wrap(
-                            spacing: 5,
-                            runSpacing: 10,
-                            children: [
-                              _LegendPill(
-                                color: AppThemeColors.primary,
-                                label: 'Treino concluido',
-                              ),
-                              _LegendPill(
-                                color: AppThemeColors.danger,
-                                label: 'Dia perdido',
-                              ),
-                              _LegendPill(
-                                color: AppThemeColors.surfaceSoft,
-                                label: 'Hoje',
-                              ),
-                            ],
-                          ),
-                        ],
+                                ),
+                                SizedBox(height: compactLayout ? 6 : 8),
+                                _CalendarLegendBar(compact: compactLayout),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -446,8 +423,6 @@ class _HomeTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -494,6 +469,7 @@ class _TodayWorkoutCard extends StatelessWidget {
   final bool trainedToday;
   final bool isSkippingWorkout;
   final bool showSkipAction;
+  final bool compact;
   final VoidCallback onConfigure;
   final VoidCallback? onStart;
   final VoidCallback? onSkip;
@@ -503,6 +479,7 @@ class _TodayWorkoutCard extends StatelessWidget {
     required this.trainedToday,
     required this.isSkippingWorkout,
     required this.showSkipAction,
+    required this.compact,
     required this.onConfigure,
     required this.onStart,
     required this.onSkip,
@@ -511,11 +488,11 @@ class _TodayWorkoutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentWorkout = workout;
-    final theme = Theme.of(context);
+    final cardRadius = compact ? 22.0 : 26.0;
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(cardRadius),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -527,135 +504,391 @@ class _TodayWorkoutCard extends StatelessWidget {
         border: Border.all(color: AppThemeColors.outlineStrong),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 28,
-            offset: const Offset(0, 18),
+            color: Colors.black.withValues(alpha: compact ? 0.1 : 0.16),
+            blurRadius: compact ? 16 : 24,
+            offset: Offset(0, compact ? 10 : 16),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: EdgeInsets.all(compact ? 14 : 18),
         child: currentWorkout == null
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Treino do dia',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: AppThemeColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Nenhuma sequencia configurada',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Organize a ordem dos treinos para liberar a recomendacao diaria e deixar a rotina mais previsivel.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: onConfigure,
-                    icon: const Icon(Icons.calendar_view_week_rounded),
-                    label: const Text('Configurar treino semanal'),
-                  ),
-                ],
+            ? _EmptyTodayWorkoutContent(
+                compact: compact,
+                onConfigure: onConfigure,
               )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            : _TodayWorkoutContent(
+                workout: currentWorkout,
+                trainedToday: trainedToday,
+                isSkippingWorkout: isSkippingWorkout,
+                showSkipAction: showSkipAction,
+                compact: compact,
+                onStart: onStart,
+                onSkip: onSkip,
+              ),
+      ),
+    );
+  }
+}
+
+class _EmptyTodayWorkoutContent extends StatelessWidget {
+  final bool compact;
+  final VoidCallback onConfigure;
+
+  const _EmptyTodayWorkoutContent({
+    required this.compact,
+    required this.onConfigure,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (compact) {
+      return Row(
+        children: [
+          Expanded(
+            child: _TodayWorkoutTextBlock(
+              label: 'Treino do dia',
+              title: 'Nenhuma sequencia',
+              subtitle: 'Configure a ordem semanal para liberar a home.',
+              compact: true,
+            ),
+          ),
+          const SizedBox(width: 12),
+          _CompactActionButton(
+            icon: Icons.calendar_view_week_rounded,
+            label: 'Configurar',
+            onPressed: onConfigure,
+            filled: true,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Treino do dia',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: AppThemeColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text('Nenhuma sequencia configurada', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 6),
+        Text(
+          'Organize a ordem dos treinos para liberar a recomendacao diaria.',
+          style: theme.textTheme.bodyMedium,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: onConfigure,
+          icon: const Icon(Icons.calendar_view_week_rounded),
+          label: const Text('Configurar treino semanal'),
+        ),
+      ],
+    );
+  }
+}
+
+class _TodayWorkoutContent extends StatelessWidget {
+  final Workout workout;
+  final bool trainedToday;
+  final bool isSkippingWorkout;
+  final bool showSkipAction;
+  final bool compact;
+  final VoidCallback? onStart;
+  final VoidCallback? onSkip;
+
+  const _TodayWorkoutContent({
+    required this.workout,
+    required this.trainedToday,
+    required this.isSkippingWorkout,
+    required this.showSkipAction,
+    required this.compact,
+    required this.onStart,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final workoutAreas = workout.description.trim().isEmpty
+        ? 'Areas nao definidas'
+        : workout.description.trim();
+
+    if (compact) {
+      return Row(
+        children: [
+          Expanded(
+            child: _TodayWorkoutTextBlock(
+              label: 'Treino do dia',
+              title: workoutAreas,
+              subtitle: trainedToday ? 'Treino registrado hoje.' : '',
+              compact: true,
+              trailing: trainedToday
+                  ? _StatusPill(
+                      label: 'Concluido',
+                      backgroundColor: AppThemeColors.primary.withValues(
+                        alpha: 0.14,
+                      ),
+                      textColor: AppThemeColors.primaryStrong,
+                      compact: true,
+                    )
+                  : null,
+            ),
+          ),
+          if (!trainedToday) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              width: showSkipAction ? 116 : 108,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Treino do dia',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: AppThemeColors.textMuted,
-                          ),
-                        ),
-                      ),
-                      _StatusPill(
-                        label: trainedToday ? 'Concluido' : 'Pronto',
-                        backgroundColor: trainedToday
-                            ? AppThemeColors.primary.withValues(alpha: 0.14)
-                            : AppThemeColors.secondary.withValues(alpha: 0.14),
-                        textColor: trainedToday
-                            ? AppThemeColors.primaryStrong
-                            : AppThemeColors.secondary,
-                      ),
-                    ],
+                  _CompactActionButton(
+                    icon: Icons.play_arrow_rounded,
+                    label: 'Iniciar',
+                    onPressed: onStart,
+                    filled: true,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    currentWorkout.name,
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  if (currentWorkout.description.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      currentWorkout.description,
-                      style: theme.textTheme.bodyMedium,
+                  if (showSkipAction) ...[
+                    const SizedBox(height: 6),
+                    _CompactActionButton(
+                      icon: Icons.skip_next_rounded,
+                      label: isSkippingWorkout ? 'Pulando' : 'Pular',
+                      onPressed: onSkip,
+                      filled: false,
                     ),
                   ],
-                  const SizedBox(height: 18),
-                  if (trainedToday)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppThemeColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppThemeColors.primary.withValues(alpha: 0.16),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            color: AppThemeColors.primaryStrong,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Treino de hoje registrado. Use o app para revisar os proximos passos da semana.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: AppThemeColors.primaryStrong,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: onStart,
-                            icon: const Icon(Icons.play_arrow_rounded),
-                            label: const Text('Iniciar treino'),
-                          ),
-                        ),
-                        if (showSkipAction) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: onSkip,
-                              icon: const Icon(Icons.skip_next_rounded),
-                              label: Text(
-                                isSkippingWorkout
-                                    ? 'Pulando...'
-                                    : 'Pular treino',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
                 ],
               ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Treino do dia',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: AppThemeColors.textMuted,
+                ),
+              ),
+            ),
+            if (trainedToday)
+              _StatusPill(
+                label: 'Concluido',
+                backgroundColor: AppThemeColors.primary.withValues(alpha: 0.14),
+                textColor: AppThemeColors.primaryStrong,
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          workoutAreas,
+          style: theme.textTheme.headlineSmall,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 14),
+        if (trainedToday)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppThemeColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppThemeColors.primary.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppThemeColors.primaryStrong,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Treino de hoje registrado. Revise os proximos passos da semana.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppThemeColors.primaryStrong,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onStart,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Iniciar treino'),
+                ),
+              ),
+              if (showSkipAction) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onSkip,
+                    icon: const Icon(Icons.skip_next_rounded),
+                    label: Text(
+                      isSkippingWorkout ? 'Pulando...' : 'Pular treino',
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _TodayWorkoutTextBlock extends StatelessWidget {
+  final String label;
+  final String title;
+  final String subtitle;
+  final bool compact;
+  final Widget? trailing;
+
+  const _TodayWorkoutTextBlock({
+    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.compact,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subtitleText = subtitle.trim();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: AppThemeColors.textMuted,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: compact ? theme.textTheme.titleLarge : theme.textTheme.headlineSmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (subtitleText.isNotEmpty) ...[
+          const SizedBox(height: 3),
+          Text(
+            subtitleText,
+            style: theme.textTheme.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CompactActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+
+  const _CompactActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    required this.filled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = filled
+        ? FilledButton.styleFrom(
+            minimumSize: const Size(0, 38),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          )
+        : OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 38),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            side: const BorderSide(color: AppThemeColors.outlineStrong),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          );
+    final child = _ActionButtonLabel(icon: icon, label: label);
+
+    return filled
+        ? FilledButton(onPressed: onPressed, style: style, child: child)
+        : OutlinedButton(onPressed: onPressed, style: style, child: child);
+  }
+}
+
+class _ActionButtonLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _ActionButtonLabel({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17),
+          const SizedBox(width: 5),
+          Text(label),
+        ],
       ),
     );
   }
@@ -665,76 +898,171 @@ class _StatusPill extends StatelessWidget {
   final String label;
   final Color backgroundColor;
   final Color textColor;
+  final bool compact;
 
   const _StatusPill({
     required this.label,
     required this.backgroundColor,
     required this.textColor,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 9 : 12,
+        vertical: compact ? 5 : 8,
+      ),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: textColor,
+          fontSize: compact ? 11 : null,
+          fontWeight: FontWeight.w700,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
+class _MetricsStrip extends StatelessWidget {
+  final int sessionsCount;
+  final int expectedDays;
+  final int attendanceRate;
+  final bool compact;
+
+  const _MetricsStrip({
+    required this.sessionsCount,
+    required this.expectedDays,
+    required this.attendanceRate,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppThemeColors.outline),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _MetricStripItem(
+              label: 'No mes',
+              value: '$sessionsCount',
+              accent: AppThemeColors.primary,
+              compact: compact,
+            ),
+          ),
+          const _MetricDivider(),
+          Expanded(
+            child: _MetricStripItem(
+              label: 'Meta',
+              value: '$expectedDays',
+              accent: AppThemeColors.secondary,
+              compact: compact,
+            ),
+          ),
+          const _MetricDivider(),
+          Expanded(
+            child: _MetricStripItem(
+              label: 'Ritmo',
+              value: '$attendanceRate%',
+              accent: AppThemeColors.warning,
+              compact: compact,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricStripItem extends StatelessWidget {
   final String label;
   final String value;
   final Color accent;
+  final bool compact;
 
-  const _MetricCard({
+  const _MetricStripItem({
     required this.label,
     required this.value,
     required this.accent,
+    required this.compact,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppThemeColors.outline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: compact ? 7 : 8,
+          height: compact ? 7 : 8,
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(999),
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontSize: compact ? 10 : 11,
+                  height: 1,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: 8),
-              Text(label, style: theme.textTheme.labelMedium),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: accent,
+                  fontSize: compact ? 17 : 19,
+                  height: 1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(color: accent),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 34,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      color: AppThemeColors.outline,
     );
   }
 }
@@ -798,36 +1126,80 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-class _LegendPill extends StatelessWidget {
-  final Color color;
-  final String label;
+class _CalendarLegendBar extends StatelessWidget {
+  final bool compact;
 
-  const _LegendPill({required this.color, required this.label});
+  const _CalendarLegendBar({required this.compact});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppThemeColors.outline),
-      ),
+    return SizedBox(
+      height: compact ? 24 : 28,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(3),
+          Expanded(
+            child: _LegendItem(
+              color: AppThemeColors.primary,
+              label: 'Concluido',
+              compact: compact,
             ),
           ),
-          const SizedBox(width: 8),
-          Text(label),
+          Expanded(
+            child: _LegendItem(
+              color: AppThemeColors.danger,
+              label: 'Perdido',
+              compact: compact,
+            ),
+          ),
+          Expanded(
+            child: _LegendItem(
+              color: AppThemeColors.surfaceSoft,
+              label: 'Hoje',
+              compact: compact,
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+  final bool compact;
+
+  const _LegendItem({
+    required this.color,
+    required this.label,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: compact ? 8 : 9,
+          height: compact ? 8 : 9,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontSize: compact ? 10 : 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }
