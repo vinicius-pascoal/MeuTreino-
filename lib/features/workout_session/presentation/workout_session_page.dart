@@ -13,6 +13,12 @@ import '../data/workout_session_draft_service.dart';
 import '../data/workout_session_service.dart';
 import '../models/completed_set_input.dart';
 
+const _sessionAccentColor = Color(0xFF22C55E);
+const _sessionAccentDarkColor = Color(0xFF052E16);
+const _sessionPanelColor = Color(0xFF162033);
+const _sessionPanelBorderColor = Color(0xFF243041);
+const _sessionInputColor = Color(0xFF101827);
+
 class WorkoutSessionPage extends StatefulWidget {
   final Workout workout;
 
@@ -22,11 +28,834 @@ class WorkoutSessionPage extends StatefulWidget {
   State<WorkoutSessionPage> createState() => _WorkoutSessionPageState();
 }
 
+typedef _CompletedSetsFor = int Function(String exerciseId);
+typedef _ExerciseCompletionResolver = bool Function(WorkoutExercise exercise);
+
+class _CompactWorkoutSessionScaffold extends StatelessWidget {
+  final String workoutName;
+  final List<WorkoutExercise> exercises;
+  final WorkoutExercise selectedExercise;
+  final String subtitle;
+  final int currentSet;
+  final int completedExercises;
+  final int completedSets;
+  final int selectedCompletedSets;
+  final double totalVolume;
+  final _CompletedSetsFor completedSetsFor;
+  final _ExerciseCompletionResolver isExerciseCompleted;
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+  final RestTimerValue? restTimerValue;
+  final ValueChanged<WorkoutExercise> onExerciseSelected;
+  final ValueChanged<RestTimerValue> onRestTimerChanged;
+  final VoidCallback? onCompleteSet;
+
+  const _CompactWorkoutSessionScaffold({
+    required this.workoutName,
+    required this.exercises,
+    required this.selectedExercise,
+    required this.subtitle,
+    required this.currentSet,
+    required this.completedExercises,
+    required this.completedSets,
+    required this.selectedCompletedSets,
+    required this.totalVolume,
+    required this.completedSetsFor,
+    required this.isExerciseCompleted,
+    required this.weightController,
+    required this.repsController,
+    required this.restTimerValue,
+    required this.onExerciseSelected,
+    required this.onRestTimerChanged,
+    required this.onCompleteSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(workoutName)),
+      body: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxHeight < 690 || constraints.maxWidth < 360;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SessionSummaryStrip(
+                  completedExercises: completedExercises,
+                  totalExercises: exercises.length,
+                  completedSets: completedSets,
+                  totalVolume: totalVolume,
+                  compact: compact,
+                ),
+                SizedBox(height: compact ? 8 : 10),
+                SizedBox(
+                  height: compact ? 76 : 88,
+                  child: _ExerciseSelectorStrip(
+                    exercises: exercises,
+                    selectedExercise: selectedExercise,
+                    completedSetsFor: completedSetsFor,
+                    isExerciseCompleted: isExerciseCompleted,
+                    onSelected: onExerciseSelected,
+                    compact: compact,
+                  ),
+                ),
+                SizedBox(height: compact ? 8 : 10),
+                Expanded(
+                  child: _ActiveExercisePanel(
+                    exercise: selectedExercise,
+                    subtitle: subtitle,
+                    currentSet: currentSet,
+                    completedSets: selectedCompletedSets,
+                    compact: compact,
+                    weightController: weightController,
+                    repsController: repsController,
+                    isCompleted: isExerciseCompleted(selectedExercise),
+                    restTimerValue: restTimerValue,
+                    onRestTimerChanged: onRestTimerChanged,
+                    onCompleteSet: onCompleteSet,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionSummaryStrip extends StatelessWidget {
+  final int completedExercises;
+  final int totalExercises;
+  final int completedSets;
+  final double totalVolume;
+  final bool compact;
+
+  const _SessionSummaryStrip({
+    required this.completedExercises,
+    required this.totalExercises,
+    required this.completedSets,
+    required this.totalVolume,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final exerciseProgress = totalExercises == 0
+        ? 0.0
+        : completedExercises / totalExercises;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(12, compact ? 8 : 10, 12, compact ? 8 : 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _sessionPanelBorderColor),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryValue(
+                  label: 'Exercicios',
+                  value: '$completedExercises/$totalExercises',
+                  compact: compact,
+                ),
+              ),
+              Expanded(
+                child: _SummaryValue(
+                  label: 'Series',
+                  value: '$completedSets',
+                  compact: compact,
+                ),
+              ),
+              Expanded(
+                child: _SummaryValue(
+                  label: 'Volume',
+                  value: '${totalVolume.toStringAsFixed(0)} kg',
+                  compact: compact,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: compact ? 7 : 9),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: exerciseProgress.clamp(0.0, 1.0).toDouble(),
+              minHeight: compact ? 5 : 6,
+              backgroundColor: const Color(0xFF0F172A),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                _sessionAccentColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryValue extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool compact;
+
+  const _SummaryValue({
+    required this.label,
+    required this.value,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white60,
+            fontSize: compact ? 10 : 11,
+            height: 1,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: compact ? 14 : 16,
+            height: 1,
+            fontWeight: FontWeight.w800,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+class _ExerciseSelectorStrip extends StatelessWidget {
+  final List<WorkoutExercise> exercises;
+  final WorkoutExercise selectedExercise;
+  final _CompletedSetsFor completedSetsFor;
+  final _ExerciseCompletionResolver isExerciseCompleted;
+  final ValueChanged<WorkoutExercise> onSelected;
+  final bool compact;
+
+  const _ExerciseSelectorStrip({
+    required this.exercises,
+    required this.selectedExercise,
+    required this.completedSetsFor,
+    required this.isExerciseCompleted,
+    required this.onSelected,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: exercises.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final exercise = exercises[index];
+        final selected = exercise.id == selectedExercise.id;
+        final completed = isExerciseCompleted(exercise);
+
+        return _ExerciseSelectorChip(
+          index: index + 1,
+          exercise: exercise,
+          selected: selected,
+          completed: completed,
+          completedSets: completedSetsFor(exercise.id),
+          compact: compact,
+          onTap: () => onSelected(exercise),
+        );
+      },
+    );
+  }
+}
+
+class _ExerciseSelectorChip extends StatelessWidget {
+  final int index;
+  final WorkoutExercise exercise;
+  final bool selected;
+  final bool completed;
+  final int completedSets;
+  final bool compact;
+  final VoidCallback onTap;
+
+  const _ExerciseSelectorChip({
+    required this.index,
+    required this.exercise,
+    required this.selected,
+    required this.completed,
+    required this.completedSets,
+    required this.compact,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = exercise.sets <= 0
+        ? 0.0
+        : (completedSets / exercise.sets).clamp(0.0, 1.0).toDouble();
+    final thumbnailSize = compact ? 50.0 : 58.0;
+    final muscleLabel = exercise.muscleRegion.trim().isNotEmpty
+        ? exercise.muscleRegion.trim()
+        : exercise.muscleGroup.trim();
+
+    return SizedBox(
+      width: compact ? 178 : 208,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: EdgeInsets.all(compact ? 8 : 9),
+          decoration: BoxDecoration(
+            color: selected
+                ? _sessionAccentColor.withValues(alpha: 0.16)
+                : const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected || completed
+                  ? _sessionAccentColor.withValues(alpha: selected ? 0.9 : 0.55)
+                  : _sessionPanelBorderColor,
+              width: selected ? 1.4 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: _sessionAccentColor.withValues(alpha: 0.16),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ExerciseImage(
+                    imageAsset: exercise.imageAsset,
+                    width: thumbnailSize,
+                    height: thumbnailSize,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  Positioned(
+                    right: -5,
+                    top: -5,
+                    child: _MiniExerciseStatusBadge(
+                      index: index,
+                      selected: selected,
+                      completed: completed,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: compact ? 12 : 14,
+                        height: 1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      muscleLabel.isEmpty ? 'Exercicio' : muscleLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: compact ? 10 : 11,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 4,
+                              backgroundColor: const Color(0xFF0F172A),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                selected
+                                    ? _sessionAccentColor
+                                    : _sessionAccentColor.withValues(
+                                        alpha: 0.72,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          '$completedSets/${exercise.sets}',
+                          style: TextStyle(
+                            color: completed
+                                ? _sessionAccentColor
+                                : Colors.white70,
+                            fontSize: compact ? 10 : 11,
+                            height: 1,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniExerciseStatusBadge extends StatelessWidget {
+  final int index;
+  final bool selected;
+  final bool completed;
+
+  const _MiniExerciseStatusBadge({
+    required this.index,
+    required this.selected,
+    required this.completed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final background = completed
+        ? _sessionAccentColor
+        : selected
+        ? Colors.white
+        : _sessionPanelColor;
+    final foreground = completed || !selected
+        ? Colors.white
+        : _sessionAccentDarkColor;
+
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+        border: Border.all(color: _sessionPanelColor, width: 2),
+      ),
+      child: completed
+          ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+          : Text(
+              '$index',
+              style: TextStyle(
+                color: foreground,
+                fontSize: 10,
+                height: 1,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+    );
+  }
+}
+
+class _ActiveExercisePanel extends StatelessWidget {
+  final WorkoutExercise exercise;
+  final String subtitle;
+  final int currentSet;
+  final int completedSets;
+  final bool compact;
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+  final bool isCompleted;
+  final RestTimerValue? restTimerValue;
+  final ValueChanged<RestTimerValue> onRestTimerChanged;
+  final VoidCallback? onCompleteSet;
+
+  const _ActiveExercisePanel({
+    required this.exercise,
+    required this.subtitle,
+    required this.currentSet,
+    required this.completedSets,
+    required this.compact,
+    required this.weightController,
+    required this.repsController,
+    required this.isCompleted,
+    required this.restTimerValue,
+    required this.onRestTimerChanged,
+    required this.onCompleteSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(compact ? 12 : 14),
+      decoration: BoxDecoration(
+        color: _sessionPanelColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _sessionPanelBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tight = constraints.maxHeight < 430;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ExerciseInfoBlock(
+                exercise: exercise,
+                subtitle: subtitle,
+                currentSet: currentSet,
+                compact: compact || tight,
+              ),
+              SizedBox(height: tight ? 8 : 10),
+              _SetProgressBar(
+                completedSets: completedSets,
+                totalSets: exercise.sets,
+                compact: compact || tight,
+              ),
+              if (exercise.notes.trim().isNotEmpty && !tight) ...[
+                const SizedBox(height: 8),
+                Text(
+                  exercise.notes.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              ],
+              SizedBox(height: tight ? 8 : 10),
+              Expanded(
+                child: ExerciseImage(
+                  imageAsset: exercise.imageAsset,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              SizedBox(height: tight ? 8 : 10),
+              _SetEntryRow(
+                exercise: exercise,
+                compact: compact || tight,
+                weightController: weightController,
+                repsController: repsController,
+                isCompleted: isCompleted,
+                onCompleteSet: onCompleteSet,
+              ),
+              SizedBox(height: tight ? 8 : 10),
+              RestTimer(
+                key: ValueKey('${exercise.id}-$completedSets'),
+                initialSeconds: exercise.restSeconds,
+                initialValue: restTimerValue,
+                onChanged: onRestTimerChanged,
+                compact: true,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ExerciseInfoBlock extends StatelessWidget {
+  final WorkoutExercise exercise;
+  final String subtitle;
+  final int currentSet;
+  final bool compact;
+
+  const _ExerciseInfoBlock({
+    required this.exercise,
+    required this.subtitle,
+    required this.currentSet,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _InfoPill(
+              label: 'Serie $currentSet/${exercise.sets}',
+              filled: true,
+              compact: compact,
+            ),
+            if (!exercise.isBodyweight) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: _InfoPill(
+                  label: '${exercise.currentWeight.toStringAsFixed(1)} kg',
+                  compact: compact,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          exercise.name,
+          maxLines: compact ? 1 : 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: compact ? 20 : 24,
+            height: 1.05,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: compact ? 12 : 13,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _InfoPill(label: '${exercise.targetReps} reps', compact: true),
+            _InfoPill(label: '${exercise.restSeconds}s descanso', compact: true),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final String label;
+  final bool filled;
+  final bool compact;
+
+  const _InfoPill({
+    required this.label,
+    this.filled = false,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 5 : 6,
+      ),
+      decoration: BoxDecoration(
+        color: filled
+            ? _sessionAccentColor.withValues(alpha: 0.16)
+            : Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: filled
+              ? _sessionAccentColor.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: filled ? _sessionAccentColor : Colors.white70,
+          fontSize: compact ? 11 : 12,
+          height: 1,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _SetProgressBar extends StatelessWidget {
+  final int completedSets;
+  final int totalSets;
+  final bool compact;
+
+  const _SetProgressBar({
+    required this.completedSets,
+    required this.totalSets,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedTotal = totalSets <= 0 ? 1 : totalSets;
+
+    return Row(
+      children: List.generate(normalizedTotal, (index) {
+        final completed = index < completedSets;
+
+        return Expanded(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: compact ? 7 : 8,
+            margin: EdgeInsets.only(right: index == normalizedTotal - 1 ? 0 : 6),
+            decoration: BoxDecoration(
+              color: completed ? _sessionAccentColor : const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: completed
+                    ? _sessionAccentColor.withValues(alpha: 0.4)
+                    : _sessionPanelBorderColor,
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _SetEntryRow extends StatelessWidget {
+  final WorkoutExercise exercise;
+  final bool compact;
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+  final bool isCompleted;
+  final VoidCallback? onCompleteSet;
+
+  const _SetEntryRow({
+    required this.exercise,
+    required this.compact,
+    required this.weightController,
+    required this.repsController,
+    required this.isCompleted,
+    required this.onCompleteSet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final actionWidth = constraints.maxWidth < 340 ? 104.0 : 124.0;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!exercise.isBodyweight) ...[
+              Expanded(
+                child: _CompactNumberField(
+                  controller: weightController,
+                  label: 'Carga',
+                  suffix: 'kg',
+                  decimal: true,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: _CompactNumberField(
+                controller: repsController,
+                label: 'Reps',
+                hint: exercise.targetReps,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: actionWidth,
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: isCompleted ? null : onCompleteSet,
+                icon: Icon(isCompleted ? Icons.check_circle : Icons.check),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(isCompleted ? 'Feito' : 'Registrar'),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CompactNumberField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? hint;
+  final String? suffix;
+  final bool decimal;
+
+  const _CompactNumberField({
+    required this.controller,
+    required this.label,
+    this.hint,
+    this.suffix,
+    this.decimal = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        isDense: true,
+        labelText: label,
+        hintText: hint,
+        suffixText: suffix,
+        fillColor: _sessionInputColor,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 13,
+        ),
+      ),
+      keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+      textInputAction: TextInputAction.done,
+    );
+  }
+}
+
 class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     with WidgetsBindingObserver {
   static const _accentColor = Color(0xFF22C55E);
-  static const _panelColor = Color(0xFF162033);
-  static const _panelBorderColor = Color(0xFF243041);
 
   final _workoutService = WorkoutService();
   final _sessionService = WorkoutSessionService();
@@ -178,11 +1007,6 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   int _nextSetNumberFor(WorkoutExercise exercise) {
     final nextSet = _completedSetsCountFor(exercise.id) + 1;
     return nextSet > exercise.sets ? exercise.sets : nextSet;
-  }
-
-  double _progressFor(WorkoutExercise exercise) {
-    if (exercise.sets <= 0) return 0;
-    return _completedSetsCountFor(exercise.id) / exercise.sets;
   }
 
   double _suggestedWeightFor(WorkoutExercise exercise) {
@@ -450,299 +1274,29 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
           (sum, item) => sum + item.volume,
         );
 
-        return Scaffold(
-          appBar: AppBar(title: Text(widget.workout.name)),
-          body: SafeArea(
-            minimum: const EdgeInsets.all(16),
-            child: ListView(
-              children: [
-                ExerciseImage(imageAsset: exercise.imageAsset, height: 220),
-                const SizedBox(height: 18),
-                Text(
-                  '$completedExercises de ${exercises.length} exercicios concluidos',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  exercise.name,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_exerciseSubtitle(exercise)} - Série $currentSet de ${exercise.sets}',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                if (!exercise.isBodyweight) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
-                    style: const TextStyle(
-                      color: _accentColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                  decoration: BoxDecoration(
-                    color: _panelColor,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: _panelBorderColor),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x22000000),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: const BoxDecoration(
-                              color: Color(0x1F22C55E),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.fitness_center,
-                              color: _accentColor,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Selecione o exercicio',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  'Voce pode alternar livremente entre os exercicios do treino.',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 156,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: exercises.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            final item = exercises[index];
-                            final completedSets = _completedSetsCountFor(item.id);
-                            final isSelected = item.id == exercise.id;
-                            final isCompleted = _isExerciseCompleted(item);
-                            final progress = _progressFor(item);
-
-                            return SizedBox(
-                              width: 204,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(22),
-                                onTap: () => _selectExercise(item),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    12,
-                                    14,
-                                    12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: isSelected
-                                        ? const LinearGradient(
-                                            colors: [
-                                              Color(0xFF22C55E),
-                                              Color(0xFF16A34A),
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          )
-                                        : null,
-                                    color: isSelected
-                                        ? null
-                                        : const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? const Color(0x8022C55E)
-                                          : isCompleted
-                                              ? const Color(0x8022C55E)
-                                              : _panelBorderColor,
-                                      width: 1.2,
-                                    ),
-                                    boxShadow: isSelected
-                                        ? const [
-                                            BoxShadow(
-                                              color: Color(0x3322C55E),
-                                              blurRadius: 18,
-                                              offset: Offset(0, 10),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              item.name,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 15,
-                                                color: isSelected
-                                                    ? const Color(0xFF052E16)
-                                                    : Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(
-                                            isCompleted
-                                                ? Icons.check_circle
-                                                : isSelected
-                                                    ? Icons.play_circle_fill
-                                                    : Icons.radio_button_unchecked,
-                                            size: 20,
-                                            color: isSelected
-                                                ? const Color(0xFF052E16)
-                                                : isCompleted
-                                                    ? _accentColor
-                                                    : Colors.white38,
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        _exerciseSubtitle(item),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isSelected
-                                              ? const Color(0xCC052E16)
-                                              : Colors.white70,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        '$completedSets/${item.sets} series',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: isSelected
-                                              ? const Color(0xFF052E16)
-                                              : Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(999),
-                                        child: LinearProgressIndicator(
-                                          value: progress.clamp(0, 1),
-                                          minHeight: 8,
-                                          backgroundColor: isSelected
-                                              ? const Color(0x55052E16)
-                                              : const Color(0xFF0F172A),
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                            isSelected
-                                                ? const Color(0xFF052E16)
-                                                : _accentColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                if (!exercise.isBodyweight) ...[
-                  TextField(
-                    controller: _weightController,
-                    decoration: const InputDecoration(
-                      labelText: 'Carga usada',
-                      suffixText: 'kg',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                TextField(
-                  controller: _repsController,
-                  decoration: InputDecoration(
-                    labelText: 'Repeticoes feitas',
-                    hintText: exercise.targetReps,
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: _isExerciseCompleted(exercise)
-                      ? null
-                      : () => _completeSet(exercise, exercises),
-                  icon: const Icon(Icons.check),
-                  label: Text(
-                    _isExerciseCompleted(exercise)
-                        ? 'Exercicio concluido'
-                        : 'Concluir serie',
-                  ),
-                ),
-                const SizedBox(height: 18),
-                RestTimer(
-                  key: ValueKey(
-                    '${exercise.id}-${_completedSetsCountFor(exercise.id)}',
-                  ),
-                  initialSeconds: exercise.restSeconds,
-                  initialValue: _restTimerValueFor(exercise),
-                  onChanged: (value) => _handleRestTimerChanged(exercise, value),
-                ),
-                const SizedBox(height: 18),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Volume registrado ate agora: ${totalVolume.toStringAsFixed(0)} kg',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return _CompactWorkoutSessionScaffold(
+          workoutName: widget.workout.name,
+          exercises: exercises,
+          selectedExercise: exercise,
+          subtitle: _exerciseSubtitle(exercise),
+          currentSet: currentSet,
+          completedExercises: completedExercises,
+          completedSets: _completedSets.length,
+          selectedCompletedSets: _completedSetsCountFor(exercise.id),
+          totalVolume: totalVolume,
+          completedSetsFor: _completedSetsCountFor,
+          isExerciseCompleted: _isExerciseCompleted,
+          weightController: _weightController,
+          repsController: _repsController,
+          restTimerValue: _restTimerValueFor(exercise),
+          onExerciseSelected: _selectExercise,
+          onRestTimerChanged: (value) =>
+              _handleRestTimerChanged(exercise, value),
+          onCompleteSet: _isExerciseCompleted(exercise)
+              ? null
+              : () => _completeSet(exercise, exercises),
         );
+
       },
     );
   }
@@ -758,6 +1312,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       parts.add(exercise.equipment.trim());
     }
 
-    return parts.join(' • ');
+    return parts.join(' - ');
   }
 }
+

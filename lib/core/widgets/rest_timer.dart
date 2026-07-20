@@ -9,6 +9,7 @@ class RestTimer extends StatefulWidget {
   final RestTimerValue? initialValue;
   final ValueChanged<RestTimerValue>? onChanged;
   final VoidCallback? onFinished;
+  final bool compact;
 
   const RestTimer({
     super.key,
@@ -16,6 +17,7 @@ class RestTimer extends StatefulWidget {
     this.initialValue,
     this.onChanged,
     this.onFinished,
+    this.compact = false,
   });
 
   @override
@@ -191,6 +193,76 @@ class _RestTimerState extends State<RestTimer> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.compact) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.timer_outlined, color: Colors.white70, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Descanso',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formattedTime,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        height: 1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 40,
+                child: FilledButton.icon(
+                  onPressed: _value.isRunning ? _pause : _start,
+                  icon: Icon(_value.isRunning ? Icons.pause : Icons.play_arrow),
+                  label: Text(_value.isRunning ? 'Pausar' : 'Iniciar'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Reiniciar',
+                child: IconButton(
+                  onPressed: _reset,
+                  icon: const Icon(Icons.refresh_rounded),
+                  iconSize: 20,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(40, 40),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
