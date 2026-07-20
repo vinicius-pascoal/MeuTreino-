@@ -194,7 +194,19 @@ class _RestTimerState extends State<RestTimer> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (widget.compact) {
-      return Card(
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF1E293B).withValues(alpha: 0.96),
+              const Color(0xFF111827).withValues(alpha: 0.96),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFF334155)),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
