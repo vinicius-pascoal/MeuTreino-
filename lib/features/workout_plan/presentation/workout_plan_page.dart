@@ -4,7 +4,6 @@ import '../../../app/app_theme.dart';
 import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
-import '../../../core/widgets/app_section_header.dart';
 import '../../auth/presentation/auth_gate.dart';
 import '../../home_widgets/data/app_home_widget_service.dart';
 import '../../workouts/data/workout_service.dart';
@@ -326,7 +325,7 @@ class _WorkoutPlanBody extends StatelessWidget {
     ];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 116),
       children: [
         _PlanOverviewCard(
           selectedWorkoutCount: selectedWorkoutIds.length,
@@ -337,148 +336,82 @@ class _WorkoutPlanBody extends StatelessWidget {
           onSavePlan: onSavePlan,
           onClearSequence: selectedWorkoutIds.isEmpty ? null : onClearSequence,
         ),
-        const SizedBox(height: 24),
-        const AppSectionHeader(
-          title: 'Treinos da semana',
-          subtitle:
-              'Selecione e organize no mesmo lugar. Os treinos escolhidos ficam no topo e podem ser arrastados.',
+        const SizedBox(height: 14),
+        _CompactSectionTitle(
+          icon: Icons.fitness_center_rounded,
+          title: 'Treinos',
+          subtitle: selectedWorkoutIds.isEmpty
+              ? 'Toque para adicionar'
+              : '${selectedWorkoutIds.length} na sequencia',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         if (workouts.isEmpty)
           const _EmptyWorkoutPoolCard()
         else
-          ...[
-            if (selectedWorkoutIds.isEmpty) ...[
-              const _EmptySequenceCard(),
-              const SizedBox(height: 12),
-            ],
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: orderedWorkouts.length,
-              onReorder: (oldIndex, newIndex) {
-                final selectedCount = selectedWorkoutIds.length;
-                if (oldIndex >= selectedCount) return;
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: orderedWorkouts.length,
+            proxyDecorator: (child, index, animation) {
+              return Material(
+                color: Colors.transparent,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 1, end: 1.02).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            onReorder: (oldIndex, newIndex) {
+              final selectedCount = selectedWorkoutIds.length;
+              if (oldIndex >= selectedCount) return;
 
-                var targetIndex = newIndex;
-                if (targetIndex < 0) targetIndex = 0;
-                if (targetIndex > selectedCount) {
-                  targetIndex = selectedCount;
-                }
+              var targetIndex = newIndex;
+              if (targetIndex < 0) targetIndex = 0;
+              if (targetIndex > selectedCount) {
+                targetIndex = selectedCount;
+              }
 
-                onReorderWorkouts(oldIndex, targetIndex);
-              },
-              itemBuilder: (context, index) {
-                final workout = orderedWorkouts[index];
-                final selected = selectedWorkoutIds.contains(workout.id);
-                final order = selected
-                    ? selectedWorkoutIds.indexOf(workout.id) + 1
-                    : null;
+              onReorderWorkouts(oldIndex, targetIndex);
+            },
+            itemBuilder: (context, index) {
+              final workout = orderedWorkouts[index];
+              final selected = selectedWorkoutIds.contains(workout.id);
+              final order = selected
+                  ? selectedWorkoutIds.indexOf(workout.id) + 1
+                  : null;
 
-                return Padding(
-                  key: ValueKey(workout.id),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _WorkoutToggleCard(
-                    workout: workout,
-                    selected: selected,
-                    order: order,
-                    onToggle: () => onToggleWorkout(workout.id),
-                    dragHandle: selected
-                        ? ReorderableDragStartListener(
-                            index: index,
-                            child: const Tooltip(
-                              message: 'Arrastar para reorganizar',
-                              child: Padding(
-                                padding: EdgeInsets.all(8),
-                                child: Icon(Icons.drag_indicator_rounded),
-                              ),
-                            ),
-                          )
-                        : null,
-                  ),
-                );
-              },
-            ),
-          ],
-        const SizedBox(height: 24),
-        const AppSectionHeader(
-          title: 'Dias esperados',
-          subtitle:
-              'Marque os dias em que a rotina deve esperar um treino para acompanhar melhor sua frequencia.',
-        ),
-        const SizedBox(height: 12),
-        _WeekDaySummaryCard(
-          selectedCount: selectedWeekDays.length,
-          selectedLabels: selectedWeekDays
-              .map(dayShortLabelBuilder)
-              .join(' | '),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _WeekDayPresetButton(
-              icon: Icons.work_history_outlined,
-              label: 'Seg-Sex',
-              onPressed: onSelectBusinessDays,
-            ),
-            _WeekDayPresetButton(
-              icon: Icons.beach_access_outlined,
-              label: 'Sab-Dom',
-              onPressed: onSelectWeekendDays,
-            ),
-            _WeekDayPresetButton(
-              icon: Icons.calendar_month_outlined,
-              label: 'Todos',
-              onPressed: onSelectAllWeekDays,
-            ),
-            _WeekDayPresetButton(
-              icon: Icons.layers_clear_rounded,
-              label: 'Limpar',
-              onPressed: onClearWeekDays,
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columnCount = constraints.maxWidth >= 520 ? 4 : 2;
-
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 7,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columnCount,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.45,
-              ),
-              itemBuilder: (context, index) {
-                final day = index + 1;
-                final selected = selectedWeekDays.contains(day);
-
-                return _WeekDayTile(
-                  shortLabel: dayShortLabelBuilder(day),
-                  label: dayFullLabelBuilder(day),
+              return Padding(
+                key: ValueKey(workout.id),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _WorkoutToggleCard(
+                  workout: workout,
                   selected: selected,
-                  onTap: () => onToggleWeekDay(day),
-                );
-              },
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Text(
-              'Resumo atual: ${selectedWorkoutIds.length} treinos na sequencia e ${selectedWeekDays.length} dias marcados na semana.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+                  order: order,
+                  onToggle: () => onToggleWorkout(workout.id),
+                  dragHandle: selected
+                      ? ReorderableDragStartListener(
+                          index: index,
+                          child: const Tooltip(
+                            message: 'Arrastar para reorganizar',
+                            child: Icon(Icons.drag_indicator_rounded),
+                          ),
+                        )
+                      : null,
+                ),
+              );
+            },
           ),
+        const SizedBox(height: 12),
+        _WeekDaySelectorCard(
+          selectedWeekDays: selectedWeekDays,
+          dayShortLabelBuilder: dayShortLabelBuilder,
+          dayFullLabelBuilder: dayFullLabelBuilder,
+          onToggleWeekDay: onToggleWeekDay,
+          onSelectBusinessDays: onSelectBusinessDays,
+          onSelectAllWeekDays: onSelectAllWeekDays,
+          onSelectWeekendDays: onSelectWeekendDays,
+          onClearWeekDays: onClearWeekDays,
         ),
       ],
     );
@@ -509,9 +442,9 @@ class _PlanOverviewCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -526,13 +459,24 @@ class _PlanOverviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  'Gestao da semana',
-                  style: theme.textTheme.labelMedium,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Gestao da semana', style: theme.textTheme.labelMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ordem dos treinos e dias esperados.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 10),
               _StatusPill(
                 label: isPlanReady ? 'Pronto' : 'Incompleto',
                 tone: isPlanReady
@@ -541,68 +485,104 @@ class _PlanOverviewCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Monte a ordem da rotina com mais clareza.',
-            style: theme.textTheme.headlineSmall,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _OverviewMetric(
+                label: 'Sequencia',
+                value: '$selectedWorkoutCount',
+                accent: AppThemeColors.primaryStrong,
+              ),
+              _OverviewMetric(
+                label: 'Dias',
+                value: '$selectedDayCount',
+                accent: AppThemeColors.secondary,
+              ),
+              _OverviewMetric(
+                label: 'Base',
+                value: '$availableWorkoutCount',
+                accent: AppThemeColors.warning,
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Escolha os treinos, organize a sequencia e marque os dias esperados sem sair do fluxo principal do app.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _OverviewMetric(
-                  label: 'Sequencia',
-                  value: '$selectedWorkoutCount',
-                  accent: AppThemeColors.primaryStrong,
+                child: FilledButton.icon(
+                  onPressed: isSaving ? null : onSavePlan,
+                  icon: const Icon(Icons.save_rounded, size: 18),
+                  label: Text(isSaving ? 'Salvando...' : 'Salvar'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _OverviewMetric(
-                  label: 'Dias',
-                  value: '$selectedDayCount',
-                  accent: AppThemeColors.secondary,
+              if (onClearSequence != null) ...[
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'Limpar sequencia',
+                  child: IconButton.outlined(
+                    onPressed: onClearSequence,
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size(44, 44),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _OverviewMetric(
-                  label: 'Base',
-                  value: '$availableWorkoutCount',
-                  accent: AppThemeColors.warning,
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactSectionTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _CompactSectionTitle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppThemeColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: AppThemeColors.primaryStrong),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppThemeColors.textMuted,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isSaving ? null : onSavePlan,
-              icon: const Icon(Icons.save_rounded),
-              label: Text(
-                isSaving ? 'Salvando...' : 'Salvar plano semanal',
-              ),
-            ),
-          ),
-          if (onClearSequence != null) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: onClearSequence,
-                icon: const Icon(Icons.restart_alt_rounded),
-                label: const Text('Limpar sequencia'),
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -621,21 +601,28 @@ class _OverviewMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: AppThemeColors.outline),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppThemeColors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: accent,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -653,31 +640,14 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: tone.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(color: tone, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-class _EmptySequenceCard extends StatelessWidget {
-  const _EmptySequenceCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Text(
-          'Escolha os treinos logo abaixo. Assim que entrar na semana, cada treino sobe para o topo e pode ser reordenado por arraste.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        style: TextStyle(color: tone, fontWeight: FontWeight.w800, fontSize: 12),
       ),
     );
   }
@@ -690,9 +660,9 @@ class _EmptyWorkoutPoolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(14),
         child: Text(
-          'Voce ainda nao criou treinos suficientes para montar a semana. Cadastre alguns treinos e volte aqui para organizar a ordem.',
+          'Crie treinos para organizar a semana.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ),
@@ -720,119 +690,244 @@ class _WorkoutToggleCard extends StatelessWidget {
     final description = workout.description.trim().isEmpty
         ? 'Sem descricao definida'
         : workout.description.trim();
-    final actionLabel = selected ? 'Remover da semana' : 'Adicionar na semana';
-    final actionIcon = selected ? Icons.remove_circle_outline : Icons.add_rounded;
+    final actionIcon = selected ? Icons.remove_rounded : Icons.add_rounded;
+    final actionMessage = selected ? 'Remover da semana' : 'Adicionar na semana';
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onToggle,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
-                width: 48,
-                height: 48,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: selected
                       ? AppThemeColors.secondary.withValues(alpha: 0.16)
                       : Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: selected
                         ? AppThemeColors.secondary.withValues(alpha: 0.18)
                         : AppThemeColors.outline,
                   ),
                 ),
-                child: Icon(
-                  selected
-                      ? Icons.check_circle_rounded
-                      : Icons.add_circle_outline_rounded,
-                  color: selected
-                      ? AppThemeColors.secondary
-                      : AppThemeColors.textMuted,
+                child: Center(
+                  child: Text(
+                    order != null ? '$order' : '+',
+                    style: TextStyle(
+                      color: selected
+                          ? AppThemeColors.secondary
+                          : AppThemeColors.textMuted,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            workout.name,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        if (order != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppThemeColors.primary.withValues(
-                                alpha: 0.12,
-                              ),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'Ordem $order',
-                              style: const TextStyle(
-                                color: AppThemeColors.primaryStrong,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        if (dragHandle != null) ...[
-                          const SizedBox(width: 6),
-                          dragHandle!,
-                        ],
-                      ],
+                    Text(
+                      workout.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 3),
                     Text(
                       description,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      selected
-                          ? 'Ja faz parte da sua semana e pode ser arrastado para mudar a ordem'
-                          : 'Disponivel para entrar na sequencia',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: selected
-                            ? AppThemeColors.secondary
-                            : AppThemeColors.textMuted,
-                        fontWeight: FontWeight.w600,
+                        color: AppThemeColors.textMuted,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: selected
-                          ? OutlinedButton.icon(
-                              onPressed: onToggle,
-                              icon: Icon(actionIcon),
-                              label: Text(actionLabel),
-                            )
-                          : FilledButton.tonalIcon(
-                              onPressed: onToggle,
-                              icon: Icon(actionIcon),
-                              label: Text(actionLabel),
-                            ),
                     ),
                   ],
                 ),
               ),
+              if (dragHandle != null) ...[
+                const SizedBox(width: 6),
+                SizedBox(width: 34, height: 34, child: dragHandle!),
+              ],
+              const SizedBox(width: 4),
+              Tooltip(
+                message: actionMessage,
+                child: IconButton(
+                  onPressed: onToggle,
+                  icon: Icon(actionIcon),
+                  color: selected
+                      ? AppThemeColors.secondary
+                      : AppThemeColors.primaryStrong,
+                  style: IconButton.styleFrom(
+                    fixedSize: const Size(34, 34),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekDaySelectorCard extends StatelessWidget {
+  final List<int> selectedWeekDays;
+  final String Function(int day) dayShortLabelBuilder;
+  final String Function(int day) dayFullLabelBuilder;
+  final ValueChanged<int> onToggleWeekDay;
+  final VoidCallback onSelectBusinessDays;
+  final VoidCallback onSelectAllWeekDays;
+  final VoidCallback onSelectWeekendDays;
+  final VoidCallback onClearWeekDays;
+
+  const _WeekDaySelectorCard({
+    required this.selectedWeekDays,
+    required this.dayShortLabelBuilder,
+    required this.dayFullLabelBuilder,
+    required this.onToggleWeekDay,
+    required this.onSelectBusinessDays,
+    required this.onSelectAllWeekDays,
+    required this.onSelectWeekendDays,
+    required this.onClearWeekDays,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedLabels = selectedWeekDays.map(dayShortLabelBuilder).join(' | ');
+    final summary = selectedWeekDays.isEmpty
+        ? 'Nenhum dia marcado'
+        : selectedLabels;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppThemeColors.secondary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.event_available_rounded,
+                    size: 18,
+                    color: AppThemeColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dias esperados',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemeColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemeColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${selectedWeekDays.length}/7',
+                    style: const TextStyle(
+                      color: AppThemeColors.primaryStrong,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _WeekDayPresetButton(
+                  icon: Icons.work_history_outlined,
+                  label: 'Seg-Sex',
+                  onPressed: onSelectBusinessDays,
+                ),
+                _WeekDayPresetButton(
+                  icon: Icons.beach_access_outlined,
+                  label: 'Sab-Dom',
+                  onPressed: onSelectWeekendDays,
+                ),
+                _WeekDayPresetButton(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Todos',
+                  onPressed: onSelectAllWeekDays,
+                ),
+                _WeekDayPresetButton(
+                  icon: Icons.layers_clear_rounded,
+                  label: 'Limpar',
+                  onPressed: onClearWeekDays,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 8.0;
+                final columns = constraints.maxWidth >= 560
+                    ? 7
+                    : constraints.maxWidth >= 360
+                        ? 4
+                        : 3;
+                final itemWidth =
+                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: List.generate(7, (index) {
+                    final day = index + 1;
+                    final selected = selectedWeekDays.contains(day);
+
+                    return SizedBox(
+                      width: itemWidth,
+                      child: _WeekDayTile(
+                        shortLabel: dayShortLabelBuilder(day),
+                        label: dayFullLabelBuilder(day),
+                        selected: selected,
+                        onTap: () => onToggleWeekDay(day),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -854,65 +949,14 @@ class _WeekDayPresetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      ),
-    );
-  }
-}
-
-class _WeekDaySummaryCard extends StatelessWidget {
-  final int selectedCount;
-  final String selectedLabels;
-
-  const _WeekDaySummaryCard({
-    required this.selectedCount,
-    required this.selectedLabels,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final summary = selectedCount == 0
-        ? 'Nenhum dia marcado ainda.'
-        : '$selectedCount dia(s) ativo(s): $selectedLabels';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppThemeColors.primary.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.event_available_rounded),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Resumo da semana',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    summary,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppThemeColors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -934,69 +978,56 @@ class _WeekDayTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppThemeColors.primary.withValues(alpha: 0.16)
-                : Colors.white.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
               color: selected
-                  ? AppThemeColors.primary.withValues(alpha: 0.2)
-                  : AppThemeColors.outline,
+                  ? AppThemeColors.primary.withValues(alpha: 0.16)
+                  : Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected
+                    ? AppThemeColors.primary.withValues(alpha: 0.26)
+                    : AppThemeColors.outline,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      shortLabel,
-                      style: TextStyle(
-                        color: selected
-                            ? AppThemeColors.primaryStrong
-                            : AppThemeColors.textMuted,
-                        fontWeight: FontWeight.w800,
-                      ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    shortLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected
+                          ? AppThemeColors.primaryStrong
+                          : AppThemeColors.textMuted,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  Icon(
-                    selected
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    size: 18,
-                    color: selected
-                        ? AppThemeColors.primaryStrong
-                        : AppThemeColors.textMuted,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                selected ? 'Treino esperado' : 'Dia livre',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                const SizedBox(width: 5),
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  size: 15,
                   color: selected
                       ? AppThemeColors.primaryStrong
                       : AppThemeColors.textMuted,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
