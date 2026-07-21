@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app_theme.dart';
@@ -27,6 +29,9 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
   final List<String> _selectedWorkoutIds = [];
   final List<int> _selectedWeekDays = [1, 2, 3, 4, 5];
 
+  Timer? _autoSaveDebounce;
+  String? _lastSavedPlanSignature;
+  bool _saveAgainAfterCurrent = false;
   bool _loading = true;
   bool _saving = false;
   List<Workout> _workouts = [];
@@ -35,6 +40,12 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
   void initState() {
     super.initState();
     _loadWorkouts();
+  }
+
+  @override
+  void dispose() {
+    _autoSaveDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadWorkouts() async {
@@ -57,6 +68,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
             ? existingPlan!.trainingWeekDays
             : const [1, 2, 3, 4, 5],
       );
+    _lastSavedPlanSignature = _currentPlanSignature;
 
     setState(() {
       _workouts = workouts;
@@ -64,46 +76,58 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
     });
   }
 
-  Future<void> _savePlan() async {
-    if (_selectedWorkoutIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione pelo menos um treino.')),
-      );
+  String get _currentPlanSignature {
+    return '${_selectedWorkoutIds.join('|')}::${_selectedWeekDays.join('|')}';
+  }
+
+  void _scheduleAutoSave() {
+    _autoSaveDebounce?.cancel();
+
+    _autoSaveDebounce = Timer(const Duration(milliseconds: 650), () {
+      _persistPlan();
+    });
+  }
+
+  Future<void> _persistPlan() async {
+    final signature = _currentPlanSignature;
+
+    if (signature == _lastSavedPlanSignature) {
       return;
     }
 
-    if (_selectedWeekDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione pelo menos um dia esperado de treino.'),
-        ),
-      );
+    if (_saving) {
+      _saveAgainAfterCurrent = true;
       return;
     }
 
-    setState(() => _saving = true);
+    final sequenceWorkoutIds = List<String>.from(_selectedWorkoutIds);
+    final trainingWeekDays = List<int>.from(_selectedWeekDays);
+
+    setState(() {
+      _saving = true;
+    });
 
     try {
       await _planService.savePlan(
-        sequenceWorkoutIds: _selectedWorkoutIds,
-        trainingWeekDays: _selectedWeekDays,
+        sequenceWorkoutIds: sequenceWorkoutIds,
+        trainingWeekDays: trainingWeekDays,
       );
       await _homeWidgetService.syncFromAppState();
+      _lastSavedPlanSignature = signature;
 
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Treino semanal salvo com sucesso.')),
-      );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao salvar treino semanal: $error')),
-      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
+      }
+
+      if (mounted && _saveAgainAfterCurrent) {
+        _saveAgainAfterCurrent = false;
+        _scheduleAutoSave();
+      } else {
+        _saveAgainAfterCurrent = false;
       }
     }
   }
@@ -127,6 +151,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
         _selectedWorkoutIds.add(workoutId);
       }
     });
+    _scheduleAutoSave();
   }
 
   void _reorderWorkouts(int oldIndex, int newIndex) {
@@ -138,10 +163,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
       final movedWorkoutId = _selectedWorkoutIds.removeAt(oldIndex);
       _selectedWorkoutIds.insert(newIndex, movedWorkoutId);
     });
-  }
-
-  void _clearSequence() {
-    setState(_selectedWorkoutIds.clear);
+    _scheduleAutoSave();
   }
 
   void _setWeekDays(List<int> days) {
@@ -152,6 +174,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
         ..clear()
         ..addAll(normalizedDays);
     });
+    _scheduleAutoSave();
   }
 
   void _toggleWeekDay(int day) {
@@ -163,6 +186,7 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
         _selectedWeekDays.sort();
       }
     });
+    _scheduleAutoSave();
   }
 
   void _selectBusinessDays() {
@@ -240,10 +264,6 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
         .toList();
   }
 
-  bool get _isPlanReady {
-    return _selectedWorkoutIds.isNotEmpty && _selectedWeekDays.isNotEmpty;
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppPageScaffold(
@@ -260,14 +280,10 @@ class _WorkoutPlanPageState extends State<WorkoutPlanPage> {
               selectedWorkoutIds: _selectedWorkoutIds,
               selectedWeekDays: _selectedWeekDays,
               selectedWorkouts: _selectedWorkouts,
-              isPlanReady: _isPlanReady,
-              isSaving: _saving,
               dayShortLabelBuilder: _dayShortLabel,
               dayFullLabelBuilder: _dayFullLabel,
-              onSavePlan: _savePlan,
               onToggleWorkout: _toggleWorkout,
               onReorderWorkouts: _reorderWorkouts,
-              onClearSequence: _clearSequence,
               onToggleWeekDay: _toggleWeekDay,
               onSelectBusinessDays: _selectBusinessDays,
               onSelectAllWeekDays: _selectAllWeekDays,
@@ -283,14 +299,10 @@ class _WorkoutPlanBody extends StatelessWidget {
   final List<String> selectedWorkoutIds;
   final List<int> selectedWeekDays;
   final List<Workout> selectedWorkouts;
-  final bool isPlanReady;
-  final bool isSaving;
   final String Function(int day) dayShortLabelBuilder;
   final String Function(int day) dayFullLabelBuilder;
-  final VoidCallback onSavePlan;
   final ValueChanged<String> onToggleWorkout;
   final void Function(int oldIndex, int newIndex) onReorderWorkouts;
-  final VoidCallback onClearSequence;
   final ValueChanged<int> onToggleWeekDay;
   final VoidCallback onSelectBusinessDays;
   final VoidCallback onSelectAllWeekDays;
@@ -302,14 +314,10 @@ class _WorkoutPlanBody extends StatelessWidget {
     required this.selectedWorkoutIds,
     required this.selectedWeekDays,
     required this.selectedWorkouts,
-    required this.isPlanReady,
-    required this.isSaving,
     required this.dayShortLabelBuilder,
     required this.dayFullLabelBuilder,
-    required this.onSavePlan,
     required this.onToggleWorkout,
     required this.onReorderWorkouts,
-    required this.onClearSequence,
     required this.onToggleWeekDay,
     required this.onSelectBusinessDays,
     required this.onSelectAllWeekDays,
@@ -319,90 +327,27 @@ class _WorkoutPlanBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orderedWorkouts = [
-      ...selectedWorkouts,
-      ...workouts.where((workout) => !selectedWorkoutIds.contains(workout.id)),
-    ];
+    final availableWorkouts = workouts
+        .where((workout) => !selectedWorkoutIds.contains(workout.id))
+        .toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 116),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 104),
       children: [
-        _PlanOverviewCard(
-          selectedWorkoutCount: selectedWorkoutIds.length,
-          selectedDayCount: selectedWeekDays.length,
-          availableWorkoutCount: workouts.length,
-          isPlanReady: isPlanReady,
-          isSaving: isSaving,
-          onSavePlan: onSavePlan,
-          onClearSequence: selectedWorkoutIds.isEmpty ? null : onClearSequence,
-        ),
-        const SizedBox(height: 14),
-        _CompactSectionTitle(
-          icon: Icons.fitness_center_rounded,
-          title: 'Treinos',
-          subtitle: selectedWorkoutIds.isEmpty
-              ? 'Toque para adicionar'
-              : '${selectedWorkoutIds.length} na sequencia',
-        ),
-        const SizedBox(height: 8),
         if (workouts.isEmpty)
           const _EmptyWorkoutPoolCard()
         else
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: false,
-            itemCount: orderedWorkouts.length,
-            proxyDecorator: (child, index, animation) {
-              return Material(
-                color: Colors.transparent,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 1, end: 1.02).animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            onReorder: (oldIndex, newIndex) {
-              final selectedCount = selectedWorkoutIds.length;
-              if (oldIndex >= selectedCount) return;
-
-              var targetIndex = newIndex;
-              if (targetIndex < 0) targetIndex = 0;
-              if (targetIndex > selectedCount) {
-                targetIndex = selectedCount;
-              }
-
-              onReorderWorkouts(oldIndex, targetIndex);
-            },
-            itemBuilder: (context, index) {
-              final workout = orderedWorkouts[index];
-              final selected = selectedWorkoutIds.contains(workout.id);
-              final order = selected
-                  ? selectedWorkoutIds.indexOf(workout.id) + 1
-                  : null;
-
-              return Padding(
-                key: ValueKey(workout.id),
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _WorkoutToggleCard(
-                  workout: workout,
-                  selected: selected,
-                  order: order,
-                  onToggle: () => onToggleWorkout(workout.id),
-                  dragHandle: selected
-                      ? ReorderableDragStartListener(
-                          index: index,
-                          child: const Tooltip(
-                            message: 'Arrastar para reorganizar',
-                            child: Icon(Icons.drag_indicator_rounded),
-                          ),
-                        )
-                      : null,
-                ),
-              );
-            },
+          _WorkoutSequenceCard(
+            selectedWorkoutIds: selectedWorkoutIds,
+            selectedWorkouts: selectedWorkouts,
+            availableCount: availableWorkouts.length,
+            onAddPressed: availableWorkouts.isEmpty
+                ? null
+                : () => _showAddWorkoutSheet(context),
+            onToggleWorkout: onToggleWorkout,
+            onReorderWorkouts: onReorderWorkouts,
           ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _WeekDaySelectorCard(
           selectedWeekDays: selectedWeekDays,
           dayShortLabelBuilder: dayShortLabelBuilder,
@@ -416,239 +361,113 @@ class _WorkoutPlanBody extends StatelessWidget {
       ],
     );
   }
-}
 
-class _PlanOverviewCard extends StatelessWidget {
-  final int selectedWorkoutCount;
-  final int selectedDayCount;
-  final int availableWorkoutCount;
-  final bool isPlanReady;
-  final bool isSaving;
-  final VoidCallback onSavePlan;
-  final VoidCallback? onClearSequence;
+  void _showAddWorkoutSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final availableWorkouts = workouts
+                .where((workout) => !selectedWorkoutIds.contains(workout.id))
+                .toList();
 
-  const _PlanOverviewCard({
-    required this.selectedWorkoutCount,
-    required this.selectedDayCount,
-    required this.availableWorkoutCount,
-    required this.isPlanReady,
-    required this.isSaving,
-    required this.onSavePlan,
-    required this.onClearSequence,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
-            AppThemeColors.surface.withValues(alpha: 0.94),
-          ],
-        ),
-        border: Border.all(color: AppThemeColors.outlineStrong),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Gestao da semana', style: theme.textTheme.labelMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ordem dos treinos e dias esperados.',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              _StatusPill(
-                label: isPlanReady ? 'Pronto' : 'Incompleto',
-                tone: isPlanReady
-                    ? AppThemeColors.primaryStrong
-                    : AppThemeColors.warning,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _OverviewMetric(
-                label: 'Sequencia',
-                value: '$selectedWorkoutCount',
-                accent: AppThemeColors.primaryStrong,
-              ),
-              _OverviewMetric(
-                label: 'Dias',
-                value: '$selectedDayCount',
-                accent: AppThemeColors.secondary,
-              ),
-              _OverviewMetric(
-                label: 'Base',
-                value: '$availableWorkoutCount',
-                accent: AppThemeColors.warning,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: isSaving ? null : onSavePlan,
-                  icon: const Icon(Icons.save_rounded, size: 18),
-                  label: Text(isSaving ? 'Salvando...' : 'Salvar'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                  decoration: BoxDecoration(
+                    color: AppThemeColors.surfaceHigh,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppThemeColors.outlineStrong),
                   ),
-                ),
-              ),
-              if (onClearSequence != null) ...[
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: 'Limpar sequencia',
-                  child: IconButton.outlined(
-                    onPressed: onClearSequence,
-                    icon: const Icon(Icons.restart_alt_rounded),
-                    style: IconButton.styleFrom(
-                      fixedSize: const Size(44, 44),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.68,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 38,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppThemeColors.outlineStrong,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Adicionar treinos',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
+                                  ),
+                                  Text(
+                                    '${availableWorkouts.length} disponivel(is)',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: AppThemeColors.textMuted,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              icon: const Icon(Icons.close_rounded),
+                              tooltip: 'Fechar',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (availableWorkouts.isEmpty)
+                          const _AllWorkoutsAddedCard()
+                        else
+                          Flexible(
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: availableWorkouts.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                final workout = availableWorkouts[index];
+
+                                return _WorkoutToggleCard(
+                                  workout: workout,
+                                  selected: false,
+                                  order: null,
+                                  onToggle: () {
+                                    onToggleWorkout(workout.id);
+                                    setSheetState(() {});
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactSectionTitle extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _CompactSectionTitle({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppThemeColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, size: 18, color: AppThemeColors.primaryStrong),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleSmall),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemeColors.textMuted,
-                ),
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _OverviewMetric extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color accent;
-
-  const _OverviewMetric({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppThemeColors.outline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppThemeColors.textMuted,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: accent,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color tone;
-
-  const _StatusPill({required this.label, required this.tone});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: tone, fontWeight: FontWeight.w800, fontSize: 12),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -664,6 +483,218 @@ class _EmptyWorkoutPoolCard extends StatelessWidget {
         child: Text(
           'Crie treinos para organizar a semana.',
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutSequenceCard extends StatelessWidget {
+  final List<String> selectedWorkoutIds;
+  final List<Workout> selectedWorkouts;
+  final int availableCount;
+  final VoidCallback? onAddPressed;
+  final ValueChanged<String> onToggleWorkout;
+  final void Function(int oldIndex, int newIndex) onReorderWorkouts;
+
+  const _WorkoutSequenceCard({
+    required this.selectedWorkoutIds,
+    required this.selectedWorkouts,
+    required this.availableCount,
+    required this.onAddPressed,
+    required this.onToggleWorkout,
+    required this.onReorderWorkouts,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = selectedWorkoutIds.isEmpty
+        ? '$availableCount disponivel(is)'
+        : '${selectedWorkoutIds.length} na sequencia';
+    final sequenceCanScroll = selectedWorkouts.length > 4;
+    final sequenceListHeight = sequenceCanScroll
+        ? 296.0
+        : selectedWorkouts.length * 72.0;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppThemeColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.fitness_center_rounded,
+                    size: 18,
+                    color: AppThemeColors.primaryStrong,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Treinos', style: Theme.of(context).textTheme.titleSmall),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemeColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Tooltip(
+                  message: availableCount == 0
+                      ? 'Todos os treinos adicionados'
+                      : 'Adicionar treino',
+                  child: IconButton.filledTonal(
+                    onPressed: onAddPressed,
+                    icon: Icon(
+                      availableCount == 0
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.add_rounded,
+                    ),
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size(40, 40),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (selectedWorkouts.isEmpty)
+              const _EmptySelectedSequenceCard()
+            else
+              SizedBox(
+                height: sequenceListHeight,
+                child: SingleChildScrollView(
+                  physics: sequenceCanScroll
+                      ? const BouncingScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    primary: false,
+                    padding: EdgeInsets.zero,
+                    buildDefaultDragHandles: false,
+                    itemCount: selectedWorkouts.length,
+                    physics: const NeverScrollableScrollPhysics(),
+                    proxyDecorator: (child, index, animation) {
+                      return Material(
+                        color: Colors.transparent,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 1, end: 1.02).animate(
+                            animation,
+                          ),
+                          child: child,
+                        ),
+                      );
+                    },
+                    onReorder: (oldIndex, newIndex) {
+                      var targetIndex = newIndex;
+                      if (targetIndex < 0) targetIndex = 0;
+                      if (targetIndex > selectedWorkoutIds.length) {
+                        targetIndex = selectedWorkoutIds.length;
+                      }
+
+                      onReorderWorkouts(oldIndex, targetIndex);
+                    },
+                    itemBuilder: (context, index) {
+                      final workout = selectedWorkouts[index];
+
+                      return Padding(
+                        key: ValueKey(workout.id),
+                        padding: EdgeInsets.only(
+                          bottom: index == selectedWorkouts.length - 1 ? 0 : 8,
+                        ),
+                        child: _WorkoutToggleCard(
+                          workout: workout,
+                          selected: true,
+                          order: index + 1,
+                          onToggle: () => onToggleWorkout(workout.id),
+                          dragHandle: ReorderableDragStartListener(
+                            index: index,
+                            child: const Tooltip(
+                              message: 'Arrastar para reorganizar',
+                              child: Icon(Icons.drag_indicator_rounded),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptySelectedSequenceCard extends StatelessWidget {
+  const _EmptySelectedSequenceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppThemeColors.outline),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.playlist_add_rounded,
+            color: AppThemeColors.textMuted,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Nenhum treino na sequencia semanal.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppThemeColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllWorkoutsAddedCard extends StatelessWidget {
+  const _AllWorkoutsAddedCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppThemeColors.secondary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppThemeColors.secondary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Text(
+        'Todos os treinos disponiveis ja estao na semana.',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppThemeColors.secondary,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -694,6 +725,7 @@ class _WorkoutToggleCard extends StatelessWidget {
     final actionMessage = selected ? 'Remover da semana' : 'Adicionar na semana';
 
     return Card(
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onToggle,
@@ -808,8 +840,9 @@ class _WeekDaySelectorCard extends StatelessWidget {
         : selectedLabels;
 
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -868,42 +901,43 @@ class _WeekDaySelectorCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _WeekDayPresetButton(
-                  icon: Icons.work_history_outlined,
-                  label: 'Seg-Sex',
-                  onPressed: onSelectBusinessDays,
-                ),
-                _WeekDayPresetButton(
-                  icon: Icons.beach_access_outlined,
-                  label: 'Sab-Dom',
-                  onPressed: onSelectWeekendDays,
-                ),
-                _WeekDayPresetButton(
-                  icon: Icons.calendar_month_outlined,
-                  label: 'Todos',
-                  onPressed: onSelectAllWeekDays,
-                ),
-                _WeekDayPresetButton(
-                  icon: Icons.layers_clear_rounded,
-                  label: 'Limpar',
-                  onPressed: onClearWeekDays,
-                ),
-              ],
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 32,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _WeekDayPresetButton(
+                    icon: Icons.work_history_outlined,
+                    label: 'Seg-Sex',
+                    onPressed: onSelectBusinessDays,
+                  ),
+                  const SizedBox(width: 6),
+                  _WeekDayPresetButton(
+                    icon: Icons.beach_access_outlined,
+                    label: 'Fim',
+                    onPressed: onSelectWeekendDays,
+                  ),
+                  const SizedBox(width: 6),
+                  _WeekDayPresetButton(
+                    icon: Icons.calendar_month_outlined,
+                    label: 'Todos',
+                    onPressed: onSelectAllWeekDays,
+                  ),
+                  const SizedBox(width: 6),
+                  _WeekDayPresetButton(
+                    icon: Icons.layers_clear_rounded,
+                    label: 'Limpar',
+                    onPressed: onClearWeekDays,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             LayoutBuilder(
               builder: (context, constraints) {
-                const spacing = 8.0;
-                final columns = constraints.maxWidth >= 560
-                    ? 7
-                    : constraints.maxWidth >= 360
-                        ? 4
-                        : 3;
+                const spacing = 6.0;
+                final columns = constraints.maxWidth >= 320 ? 7 : 4;
                 final itemWidth =
                     (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
@@ -954,7 +988,8 @@ class _WeekDayPresetButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         visualDensity: VisualDensity.compact,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 9),
         textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.w700,
         ),
@@ -987,8 +1022,8 @@ class _WeekDayTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: selected
                   ? AppThemeColors.primary.withValues(alpha: 0.16)
@@ -1000,33 +1035,18 @@ class _WeekDayTile extends StatelessWidget {
                     : AppThemeColors.outline,
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    shortLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected
-                          ? AppThemeColors.primaryStrong
-                          : AppThemeColors.textMuted,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Icon(
-                  selected
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  size: 15,
+            child: Center(
+              child: Text(
+                shortLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
                   color: selected
                       ? AppThemeColors.primaryStrong
                       : AppThemeColors.textMuted,
+                  fontWeight: FontWeight.w800,
                 ),
-              ],
+              ),
             ),
           ),
         ),
