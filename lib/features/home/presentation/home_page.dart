@@ -488,7 +488,7 @@ class _TodayWorkoutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentWorkout = workout;
-    final cardRadius = compact ? 22.0 : 26.0;
+    final cardRadius = compact ? 20.0 : 24.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -498,20 +498,24 @@ class _TodayWorkoutCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
-            AppThemeColors.surface.withValues(alpha: 0.94),
+            AppThemeColors.surface.withValues(alpha: 0.96),
           ],
         ),
-        border: Border.all(color: AppThemeColors.outlineStrong),
+        border: Border.all(
+          color: trainedToday
+              ? AppThemeColors.primary.withValues(alpha: 0.24)
+              : AppThemeColors.outlineStrong,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: compact ? 0.1 : 0.16),
-            blurRadius: compact ? 16 : 24,
-            offset: Offset(0, compact ? 10 : 16),
+            color: Colors.black.withValues(alpha: compact ? 0.08 : 0.14),
+            blurRadius: compact ? 14 : 20,
+            offset: Offset(0, compact ? 8 : 12),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
+        padding: EdgeInsets.all(compact ? 13 : 16),
         child: currentWorkout == null
             ? _EmptyTodayWorkoutContent(
                 compact: compact,
@@ -616,9 +620,10 @@ class _TodayWorkoutContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final workoutAreas = workout.description.trim().isEmpty
-        ? 'Areas nao definidas'
-        : workout.description.trim();
+    final workoutDescription = workout.description.trim();
+    final workoutSummary = workoutDescription.isEmpty
+        ? 'Sem foco definido'
+        : workoutDescription;
 
     if (compact) {
       return Row(
@@ -626,8 +631,8 @@ class _TodayWorkoutContent extends StatelessWidget {
           Expanded(
             child: _TodayWorkoutTextBlock(
               label: 'Treino do dia',
-              title: workoutAreas,
-              subtitle: trainedToday ? 'Treino registrado hoje.' : '',
+              title: workout.name,
+              subtitle: trainedToday ? 'Treino registrado hoje.' : workoutSummary,
               compact: true,
               trailing: trainedToday
                   ? _StatusPill(
@@ -651,7 +656,7 @@ class _TodayWorkoutContent extends StatelessWidget {
                 children: [
                   _CompactActionButton(
                     icon: Icons.play_arrow_rounded,
-                    label: 'Iniciar',
+                    label: 'Comecar',
                     onPressed: onStart,
                     filled: true,
                   ),
@@ -678,13 +683,35 @@ class _TodayWorkoutContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _TodayWorkoutIcon(done: trainedToday),
+            const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'Treino do dia',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: AppThemeColors.textMuted,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Treino do dia',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: AppThemeColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    workout.name,
+                    style: theme.textTheme.titleLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    workoutSummary,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
             if (trainedToday)
@@ -694,13 +721,6 @@ class _TodayWorkoutContent extends StatelessWidget {
                 textColor: AppThemeColors.primaryStrong,
               ),
           ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          workoutAreas,
-          style: theme.textTheme.headlineSmall,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 14),
         if (trainedToday)
@@ -737,27 +757,53 @@ class _TodayWorkoutContent extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
+                child: _TodayWorkoutActionButton(
                   onPressed: onStart,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Iniciar treino'),
+                  icon: Icons.play_arrow_rounded,
+                  label: 'Comecar treino',
+                  filled: true,
                 ),
               ),
               if (showSkipAction) ...[
                 const SizedBox(width: 10),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: _TodayWorkoutActionButton(
                     onPressed: onSkip,
-                    icon: const Icon(Icons.skip_next_rounded),
-                    label: Text(
-                      isSkippingWorkout ? 'Pulando...' : 'Pular treino',
-                    ),
+                    icon: Icons.skip_next_rounded,
+                    label: isSkippingWorkout ? 'Pulando...' : 'Pular treino',
+                    filled: false,
                   ),
                 ),
               ],
             ],
           ),
       ],
+    );
+  }
+}
+
+class _TodayWorkoutIcon extends StatelessWidget {
+  final bool done;
+
+  const _TodayWorkoutIcon({required this.done});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = done ? AppThemeColors.primary : AppThemeColors.secondary;
+
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Icon(
+        done ? Icons.check_rounded : Icons.fitness_center_rounded,
+        color: done ? AppThemeColors.primaryStrong : AppThemeColors.secondary,
+        size: 21,
+      ),
     );
   }
 }
@@ -821,6 +867,57 @@ class _TodayWorkoutTextBlock extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _TodayWorkoutActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+
+  const _TodayWorkoutActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    required this.filled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    );
+    final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
+      fontWeight: FontWeight.w800,
+    );
+    final child = _ActionButtonLabel(icon: icon, label: label);
+
+    return SizedBox(
+      height: 50,
+      child: filled
+          ? FilledButton(
+              onPressed: onPressed,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 50),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: shape,
+                textStyle: textStyle,
+              ),
+              child: child,
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 50),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                side: const BorderSide(color: AppThemeColors.outlineStrong),
+                shape: shape,
+                textStyle: textStyle,
+              ),
+              child: child,
+            ),
     );
   }
 }
