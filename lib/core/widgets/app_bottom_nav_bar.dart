@@ -4,10 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_theme.dart';
 import '../../core/navigation/app_navigation_state_service.dart';
-import '../../features/workout_automation/presentation/auto_workout_page.dart';
 import '../../features/workout_plan/presentation/workout_plan_page.dart';
 
-const double _navIconSize = 18;
+const double _navIconSize = 22;
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -41,11 +40,6 @@ class AppBottomNavBar extends StatelessWidget {
       activeIcon: Icons.calendar_view_week_rounded,
       label: 'Semana',
     ),
-    _NavDestinationData(
-      icon: Icons.auto_awesome_outlined,
-      activeIcon: Icons.auto_awesome_rounded,
-      label: 'Auto',
-    ),
   ];
 
   Future<void> _openOverlayPage({
@@ -70,14 +64,6 @@ class AppBottomNavBar extends StatelessWidget {
           pageState: const PersistedPageState.workoutPlan(),
         );
         return;
-      case 4:
-        if (currentIndex == index) return;
-        await _openOverlayPage(
-          context: context,
-          page: const AutoWorkoutPage(),
-          pageState: const PersistedPageState.autoWorkout(),
-        );
-        return;
       default:
         if (index == currentIndex) return;
         onItemSelected(index);
@@ -89,13 +75,13 @@ class AppBottomNavBar extends StatelessWidget {
     const gap = 6.0;
 
     return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(34),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -105,26 +91,31 @@ class AppBottomNavBar extends StatelessWidget {
                   AppThemeColors.surface.withValues(alpha: 0.88),
                 ],
               ),
-              borderRadius: BorderRadius.circular(34),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(color: AppThemeColors.outlineStrong),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 28,
-                  offset: const Offset(0, 16),
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
+                final selectedIndex = currentIndex < 0
+                    ? 0
+                    : currentIndex >= _primaryDestinations.length
+                    ? _primaryDestinations.length - 1
+                    : currentIndex;
                 final slotWidth =
                     (constraints.maxWidth -
                         ((_primaryDestinations.length - 1) * gap)) /
                     _primaryDestinations.length;
-                final highlightLeft = currentIndex * (slotWidth + gap);
+                final highlightLeft = selectedIndex * (slotWidth + gap);
 
                 return SizedBox(
-                  height: 74,
+                  height: 58,
                   child: Stack(
                     children: [
                       AnimatedPositioned(
@@ -133,11 +124,11 @@ class AppBottomNavBar extends StatelessWidget {
                         left: highlightLeft,
                         top: 0,
                         width: slotWidth,
-                        height: 74,
+                        height: 58,
                         child: IgnorePointer(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
+                              borderRadius: BorderRadius.circular(22),
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
@@ -172,8 +163,7 @@ class AppBottomNavBar extends StatelessWidget {
                               ),
                               child: _NavItem(
                                 data: item,
-                                selected: currentIndex == index,
-                                compact: index >= 3,
+                                selected: selectedIndex == index,
                                 onTap: () => _handleTap(context, index),
                               ),
                             ),
@@ -207,20 +197,18 @@ class _NavDestinationData {
 class _NavItem extends StatelessWidget {
   final _NavDestinationData data;
   final bool selected;
-  final bool compact;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.data,
     required this.selected,
-    required this.compact,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
-      fontSize: compact ? 9 : 10,
+      fontSize: 11,
       height: 1,
       fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
       color: selected ? Colors.white : AppThemeColors.textMuted,
@@ -234,41 +222,21 @@ class _NavItem extends StatelessWidget {
         child: AnimatedScale(
           duration: const Duration(milliseconds: 260),
           curve: Curves.easeOutBack,
-          scale: selected ? 1 : 0.97,
+          scale: selected ? 1 : 0.98,
           child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 2 : 4,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  width: compact ? 34 : 36,
-                  height: compact ? 34 : 36,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppThemeColors.primary.withValues(alpha: 0.18)
-                        : Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(
-                      color: selected
-                          ? AppThemeColors.primary.withValues(alpha: 0.16)
-                          : Colors.white.withValues(alpha: 0.05),
-                    ),
-                  ),
-                  child: Icon(
-                    selected ? data.activeIcon : data.icon,
-                    color: selected
-                        ? AppThemeColors.primaryStrong
-                        : AppThemeColors.textMuted,
-                    size: _navIconSize,
-                  ),
+                Icon(
+                  selected ? data.activeIcon : data.icon,
+                  color: selected
+                      ? AppThemeColors.primaryStrong
+                      : AppThemeColors.textMuted,
+                  size: _navIconSize,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   data.label,
                   maxLines: 1,
