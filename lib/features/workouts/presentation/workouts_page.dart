@@ -167,20 +167,20 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
           final workouts = snapshot.data!;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 118),
             children: [
-              const SizedBox(height: 20),
-              _WorkoutActionsCard(
+              _WorkoutActionsBar(
+                workoutCount: workouts.length,
                 onCreateWorkout: () => _createOrEditWorkoutDialog(),
                 onAutoBuild: _openAutoWorkoutPage,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               if (workouts.isEmpty)
-                _EmptyWorkoutsCard(onAutoBuild: _openAutoWorkoutPage)
+                const _EmptyWorkoutsCard()
               else
                 ...workouts.map((workout) {
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: _WorkoutListCard(
                       workout: workout,
                       onEdit: () =>
@@ -208,64 +208,53 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
   }
 }
 
-class _WorkoutActionsCard extends StatelessWidget {
+class _WorkoutActionsBar extends StatelessWidget {
+  final int workoutCount;
   final VoidCallback onCreateWorkout;
   final VoidCallback onAutoBuild;
 
-  const _WorkoutActionsCard({
+  const _WorkoutActionsBar({
+    required this.workoutCount,
     required this.onCreateWorkout,
     required this.onAutoBuild,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
-            AppThemeColors.surface.withValues(alpha: 0.94),
+            AppThemeColors.surfaceHigh.withValues(alpha: 0.96),
+            AppThemeColors.surface.withValues(alpha: 0.9),
           ],
         ),
         border: Border.all(color: AppThemeColors.outlineStrong),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'Monte sua area de treinos',
-            style: theme.textTheme.titleLarge,
+          _WorkoutCountBadge(count: workoutCount),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _WorkoutActionButton(
+              onPressed: onCreateWorkout,
+              icon: Icons.add_rounded,
+              label: 'Novo',
+              filled: true,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Crie um treino do zero ou deixe o app montar uma base inicial para voce.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onCreateWorkout,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Novo treino'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onAutoBuild,
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('Automatico'),
-                ),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: _WorkoutActionButton(
+              onPressed: onAutoBuild,
+              icon: Icons.auto_awesome_rounded,
+              label: 'Automatico',
+              filled: false,
+            ),
           ),
         ],
       ),
@@ -273,10 +262,111 @@ class _WorkoutActionsCard extends StatelessWidget {
   }
 }
 
-class _EmptyWorkoutsCard extends StatelessWidget {
-  final VoidCallback onAutoBuild;
+class _WorkoutCountBadge extends StatelessWidget {
+  final int count;
 
-  const _EmptyWorkoutsCard({required this.onAutoBuild});
+  const _WorkoutCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppThemeColors.secondary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppThemeColors.secondary.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '$count',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: AppThemeColors.secondary,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            count == 1 ? 'treino' : 'treinos',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontSize: 9,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkoutActionButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+  final bool filled;
+
+  const _WorkoutActionButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.filled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    );
+    final textStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w800,
+    );
+    final child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17),
+          const SizedBox(width: 5),
+          Text(label),
+        ],
+      ),
+    );
+
+    return SizedBox(
+      height: 44,
+      child: filled
+          ? FilledButton(
+              onPressed: onPressed,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: shape,
+                textStyle: textStyle,
+              ),
+              child: child,
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                side: const BorderSide(color: AppThemeColors.outlineStrong),
+                shape: shape,
+                textStyle: textStyle,
+              ),
+              child: child,
+            ),
+    );
+  }
+}
+
+class _EmptyWorkoutsCard extends StatelessWidget {
+  const _EmptyWorkoutsCard();
 
   @override
   Widget build(BuildContext context) {
@@ -284,39 +374,41 @@ class _EmptyWorkoutsCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.all(14),
+        child: Row(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: AppThemeColors.primary.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(15),
               ),
               child: const Icon(
                 Icons.fitness_center_rounded,
                 color: AppThemeColors.primaryStrong,
+                size: 20,
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Nenhum treino cadastrado',
-              style: theme.textTheme.titleLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Crie manualmente ou deixe o app montar uma estrutura inicial para voce.',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: onAutoBuild,
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: const Text('Montar treino automatico'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Nenhum treino cadastrado',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Use Novo ou Automatico para comecar.',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -350,57 +442,59 @@ class _WorkoutListCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: AppThemeColors.secondary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Center(
                   child: Text(
                     workout.name.isEmpty
                         ? 'T'
                         : workout.name.substring(0, 1).toUpperCase(),
-                    style: theme.textTheme.titleLarge?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: AppThemeColors.secondary,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(workout.name, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 6),
-                    Text(description, style: theme.textTheme.bodyMedium),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text(
-                          'Abrir detalhes',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppThemeColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 16,
-                          color: AppThemeColors.textSoft,
-                        ),
-                      ],
+                    Text(
+                      workout.name,
+                      style: theme.textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: AppThemeColors.textSoft,
+              ),
               PopupMenuButton<String>(
+                tooltip: 'Opcoes',
+                icon: const Icon(Icons.more_horiz_rounded),
+                padding: EdgeInsets.zero,
                 onSelected: (value) {
                   if (value == 'edit') {
                     onEdit();
