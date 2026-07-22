@@ -21,6 +21,15 @@ class WorkoutsPage extends StatefulWidget {
 class _WorkoutsPageState extends State<WorkoutsPage> {
   final _service = WorkoutService();
   final _navigationStateService = AppNavigationStateService();
+  final _searchController = TextEditingController();
+
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _createOrEditWorkoutDialog({Workout? workout}) async {
     final nameController = TextEditingController(text: workout?.name ?? '');
@@ -141,6 +150,15 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
     );
   }
 
+  bool _matchesSearch(Workout workout) {
+    final query = _searchQuery.trim().toLowerCase();
+
+    if (query.isEmpty) return true;
+
+    return workout.name.toLowerCase().contains(query) ||
+        workout.description.toLowerCase().contains(query);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppPageScaffold(
@@ -165,6 +183,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
           }
 
           final workouts = snapshot.data!;
+          final visibleWorkouts = workouts.where(_matchesSearch).toList();
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 118),
@@ -175,10 +194,28 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                 onAutoBuild: _openAutoWorkoutPage,
               ),
               const SizedBox(height: 10),
+              _WorkoutSearchField(
+                controller: _searchController,
+                query: _searchQuery,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                onClear: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                },
+              ),
+              const SizedBox(height: 10),
               if (workouts.isEmpty)
                 const _EmptyWorkoutsCard()
+              else if (visibleWorkouts.isEmpty)
+                _NoWorkoutResultsCard(query: _searchQuery)
               else
-                ...workouts.map((workout) {
+                ...visibleWorkouts.map((workout) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _WorkoutListCard(
@@ -203,6 +240,67 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _WorkoutSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final String query;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _WorkoutSearchField({
+    required this.controller,
+    required this.query,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasQuery = query.trim().isNotEmpty;
+
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: Colors.white,
+        height: 1.2,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Buscar treino',
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: hasQuery
+            ? IconButton(
+                tooltip: 'Limpar busca',
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded, size: 18),
+              )
+            : null,
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.04),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppThemeColors.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppThemeColors.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(
+            color: AppThemeColors.primary,
+            width: 1.2,
+          ),
+        ),
       ),
     );
   }
@@ -361,6 +459,47 @@ class _WorkoutActionButton extends StatelessWidget {
               ),
               child: child,
             ),
+    );
+  }
+}
+
+class _NoWorkoutResultsCard extends StatelessWidget {
+  final String query;
+
+  const _NoWorkoutResultsCard({required this.query});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppThemeColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                color: AppThemeColors.warning,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Nenhum treino encontrado para "$query".',
+                style: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
