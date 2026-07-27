@@ -182,23 +182,6 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
                 backAspectRatio: _renderedImages!.backAspectRatio,
               ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: const [
-                _EvolutionLegendChip(label: 'queda', color: Color(0xFFE35D5D)),
-                _EvolutionLegendChip(
-                  label: 'estavel',
-                  color: Color(0xFFF0C95C),
-                ),
-                _EvolutionLegendChip(
-                  label: 'evolucao',
-                  color: Color(0xFF2FBF71),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            _MuscleGroupSummaryWrap(lookup: lookup),
           ],
         ),
       ),
@@ -361,9 +344,7 @@ class _BodyFigurePanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppThemeColors.background.withValues(alpha: 0.42),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Text(
             title,
@@ -716,10 +697,7 @@ const Map<String, _BodyRegionAsset> _backRegions = {
     maskId: 'mascara-infraespinal-redondos',
     groupName: 'Costas',
   ),
-  'triceps': _BodyRegionAsset(
-    maskId: 'mascara-triceps',
-    groupName: 'Triceps',
-  ),
+  'triceps': _BodyRegionAsset(maskId: 'mascara-triceps', groupName: 'Triceps'),
   'bracos-laterais': _BodyRegionAsset(
     maskId: 'mascara-bracos-laterais',
     groupName: 'Triceps',
@@ -737,14 +715,8 @@ const Map<String, _BodyRegionAsset> _backRegions = {
     maskId: 'mascara-lombares-laterais',
     groupName: 'Costas',
   ),
-  'trapezio': _BodyRegionAsset(
-    maskId: 'mascara-trapezio',
-    groupName: 'Costas',
-  ),
-  'gluteos': _BodyRegionAsset(
-    maskId: 'mascara-gluteos',
-    groupName: 'Pernas',
-  ),
+  'trapezio': _BodyRegionAsset(maskId: 'mascara-trapezio', groupName: 'Costas'),
+  'gluteos': _BodyRegionAsset(maskId: 'mascara-gluteos', groupName: 'Pernas'),
   'adutores-posteriores': _BodyRegionAsset(
     maskId: 'mascara-adutores-posteriores',
     groupName: 'Pernas',
