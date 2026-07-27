@@ -22,8 +22,21 @@ class MuscleBodyProgressStat {
 
 class MuscleBodyProgressMapCard extends StatefulWidget {
   final List<MuscleBodyProgressStat> stats;
+  final String title;
+  final String subtitle;
+  final bool hideInactiveViews;
+  final bool? showFrontView;
+  final bool? showBackView;
 
-  const MuscleBodyProgressMapCard({super.key, required this.stats});
+  const MuscleBodyProgressMapCard({
+    super.key,
+    required this.stats,
+    this.title = 'Mapa corporal',
+    this.subtitle = 'Comparativo recente por grupo muscular',
+    this.hideInactiveViews = false,
+    this.showFrontView,
+    this.showBackView,
+  });
 
   @override
   State<MuscleBodyProgressMapCard> createState() =>
@@ -108,9 +121,12 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lookup = {
-      for (final stat in widget.stats) _normalizeGroupName(stat.name): stat,
-    };
+    final visibleViews = _resolveVisibleBodyViews(
+      widget.stats,
+      hideInactiveViews: widget.hideInactiveViews,
+      showFrontOverride: widget.showFrontView,
+      showBackOverride: widget.showBackView,
+    );
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -152,10 +168,10 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Mapa corporal', style: theme.textTheme.titleLarge),
+                      Text(widget.title, style: theme.textTheme.titleLarge),
                       const SizedBox(height: 3),
                       Text(
-                        'Comparativo recente por grupo muscular',
+                        widget.subtitle,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppThemeColors.textMuted,
                         ),
@@ -174,12 +190,19 @@ class _MuscleBodyProgressMapCardState extends State<MuscleBodyProgressMapCard> {
                 icon: Icons.broken_image_outlined,
                 message: 'Nao foi possivel carregar o mapa corporal.',
               )
+            else if (!visibleViews.hasAny)
+              const _BodyMapMessageStage(
+                icon: Icons.accessibility_new_rounded,
+                message: 'Nenhum grupo muscular compativel com o mapa.',
+              )
             else
               _BodyMapStage(
                 frontImage: _renderedImages!.front,
                 backImage: _renderedImages!.back,
                 frontAspectRatio: _renderedImages!.frontAspectRatio,
                 backAspectRatio: _renderedImages!.backAspectRatio,
+                showFront: visibleViews.showFront,
+                showBack: visibleViews.showBack,
               ),
             const SizedBox(height: 16),
           ],
@@ -204,7 +227,7 @@ class _BodyMapHeaderPill extends StatelessWidget {
         border: Border.all(color: AppThemeColors.outline),
       ),
       child: Text(
-        '$count grupos',
+        count == 1 ? '1 grupo' : '$count grupos',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: AppThemeColors.primaryStrong,
           fontWeight: FontWeight.w700,
@@ -219,12 +242,16 @@ class _BodyMapStage extends StatelessWidget {
   final ui.Image backImage;
   final double frontAspectRatio;
   final double backAspectRatio;
+  final bool showFront;
+  final bool showBack;
 
   const _BodyMapStage({
     required this.frontImage,
     required this.backImage,
     required this.frontAspectRatio,
     required this.backAspectRatio,
+    required this.showFront,
+    required this.showBack,
   });
 
   @override
@@ -235,6 +262,25 @@ class _BodyMapStage extends StatelessWidget {
         final height = isWide ? 440.0 : 330.0;
         final horizontalPadding = isWide ? 28.0 : 12.0;
         final gap = isWide ? 24.0 : 8.0;
+        final panels = <Widget>[
+          if (showFront)
+            Expanded(
+              child: _BodyFigurePanel(
+                title: 'Frente',
+                image: frontImage,
+                aspectRatio: frontAspectRatio,
+              ),
+            ),
+          if (showFront && showBack) SizedBox(width: gap),
+          if (showBack)
+            Expanded(
+              child: _BodyFigurePanel(
+                title: 'Costas',
+                image: backImage,
+                aspectRatio: backAspectRatio,
+              ),
+            ),
+        ];
 
         return Container(
           width: double.infinity,
@@ -247,28 +293,16 @@ class _BodyMapStage extends StatelessWidget {
             height: height,
             child: Stack(
               children: [
-                const Positioned.fill(
-                  child: CustomPaint(painter: _BodyMapBackdropPainter()),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _BodyMapBackdropPainter(
+                      showAxis: showFront && showBack,
+                    ),
+                  ),
                 ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _BodyFigurePanel(
-                        title: 'Frente',
-                        image: frontImage,
-                        aspectRatio: frontAspectRatio,
-                      ),
-                    ),
-                    SizedBox(width: gap),
-                    Expanded(
-                      child: _BodyFigurePanel(
-                        title: 'Costas',
-                        image: backImage,
-                        aspectRatio: backAspectRatio,
-                      ),
-                    ),
-                  ],
+                  children: panels,
                 ),
               ],
             ),
@@ -373,7 +407,9 @@ class _BodyFigurePanel extends StatelessWidget {
 }
 
 class _BodyMapBackdropPainter extends CustomPainter {
-  const _BodyMapBackdropPainter();
+  final bool showAxis;
+
+  const _BodyMapBackdropPainter({required this.showAxis});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -393,11 +429,13 @@ class _BodyMapBackdropPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    canvas.drawLine(
-      Offset(size.width / 2, 0),
-      Offset(size.width / 2, size.height),
-      axisPaint,
-    );
+    if (showAxis) {
+      canvas.drawLine(
+        Offset(size.width / 2, 0),
+        Offset(size.width / 2, size.height),
+        axisPaint,
+      );
+    }
     canvas.drawOval(
       Rect.fromCenter(
         center: Offset(size.width / 2, size.height * 0.88),
@@ -409,7 +447,9 @@ class _BodyMapBackdropPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BodyMapBackdropPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BodyMapBackdropPainter oldDelegate) {
+    return oldDelegate.showAxis != showAxis;
+  }
 }
 
 class _MuscleGroupSummaryWrap extends StatelessWidget {
@@ -734,6 +774,52 @@ const Map<String, _BodyRegionAsset> _backRegions = {
     groupName: 'Pernas',
   ),
 };
+
+class _VisibleBodyViews {
+  final bool showFront;
+  final bool showBack;
+
+  const _VisibleBodyViews({
+    required this.showFront,
+    required this.showBack,
+  });
+
+  bool get hasAny => showFront || showBack;
+}
+
+_VisibleBodyViews _resolveVisibleBodyViews(
+  List<MuscleBodyProgressStat> stats, {
+  required bool hideInactiveViews,
+  bool? showFrontOverride,
+  bool? showBackOverride,
+}) {
+  final activeGroups = stats
+      .map((stat) => _normalizeGroupName(stat.name))
+      .where((name) => name.isNotEmpty)
+      .toSet();
+  final automaticViews = hideInactiveViews
+      ? _VisibleBodyViews(
+          showFront: _regionsHaveActiveGroup(_frontRegions, activeGroups),
+          showBack: _regionsHaveActiveGroup(_backRegions, activeGroups),
+        )
+      : const _VisibleBodyViews(showFront: true, showBack: true);
+
+  return _VisibleBodyViews(
+    showFront: showFrontOverride ?? automaticViews.showFront,
+    showBack: showBackOverride ?? automaticViews.showBack,
+  );
+}
+
+bool _regionsHaveActiveGroup(
+  Map<String, _BodyRegionAsset> regions,
+  Set<String> activeGroups,
+) {
+  return regions.values.any((region) {
+    final groupName = region.groupName;
+    return groupName != null &&
+        activeGroups.contains(_normalizeGroupName(groupName));
+  });
+}
 
 Future<ui.Image> _renderFigure({
   required String svg,

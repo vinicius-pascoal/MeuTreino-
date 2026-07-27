@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../app/app_theme.dart';
 import '../../../core/models/rest_timer_value.dart';
 import '../../../core/widgets/app_background.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../../../core/widgets/rest_timer.dart';
+import '../../history/presentation/muscle_body_progress_map_card.dart';
 import '../../home_widgets/data/app_home_widget_service.dart';
 import '../../workouts/data/workout_service.dart';
 import '../../workouts/models/workout.dart';
@@ -582,17 +584,11 @@ class _ActiveExercisePanel extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A263A),
-            _sessionPanelColor,
-            Color(0xFF0F172A),
-          ],
+          colors: [Color(0xFF1A263A), _sessionPanelColor, Color(0xFF0F172A)],
           stops: [0, 0.58, 1],
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: _sessionAccentColor.withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: _sessionAccentColor.withValues(alpha: 0.16)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
@@ -635,9 +631,7 @@ class _ActiveExercisePanel extends StatelessWidget {
                 ),
               ],
               SizedBox(height: tight ? 8 : 10),
-              Expanded(
-                child: _ActiveExerciseImage(exercise: exercise),
-              ),
+              Expanded(child: _ActiveExerciseImage(exercise: exercise)),
               SizedBox(height: tight ? 8 : 10),
               _SetEntryRow(
                 exercise: exercise,
@@ -727,7 +721,10 @@ class _ExerciseInfoBlock extends StatelessWidget {
           runSpacing: 6,
           children: [
             _InfoPill(label: '${exercise.targetReps} reps', compact: true),
-            _InfoPill(label: '${exercise.restSeconds}s descanso', compact: true),
+            _InfoPill(
+              label: '${exercise.restSeconds}s descanso',
+              compact: true,
+            ),
           ],
         ),
       ],
@@ -752,9 +749,7 @@ class _ActiveExerciseImage extends StatelessWidget {
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.24),
@@ -889,7 +884,9 @@ class _SetProgressBar extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: compact ? 7 : 8,
-            margin: EdgeInsets.only(right: index == normalizedTotal - 1 ? 0 : 6),
+            margin: EdgeInsets.only(
+              right: index == normalizedTotal - 1 ? 0 : 6,
+            ),
             decoration: BoxDecoration(
               color: completed ? _sessionAccentColor : const Color(0xFF0F172A),
               borderRadius: BorderRadius.circular(999),
@@ -1013,10 +1010,477 @@ class _CompactNumberField extends StatelessWidget {
   }
 }
 
+class _WorkoutCompletionScreen extends StatelessWidget {
+  final String workoutName;
+  final DateTime startedAt;
+  final List<CompletedSetInput> completedSets;
+  final bool saving;
+  final VoidCallback onSave;
+
+  const _WorkoutCompletionScreen({
+    required this.workoutName,
+    required this.startedAt,
+    required this.completedSets,
+    required this.saving,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalVolume = completedSets.fold<double>(
+      0,
+      (sum, item) => sum + item.volume,
+    );
+    final completedExercises = completedSets
+        .map((set) => set.exercise.id)
+        .toSet()
+        .length;
+    final durationLabel = _formatCompletionDuration(
+      DateTime.now().difference(startedAt),
+    );
+    final muscleStats = _buildCompletionMuscleMapStats(completedSets);
+    final bodyViews = _resolveCompletionBodyViews(completedSets);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Finalizar treino')),
+      body: AppBackground(
+        child: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final horizontalInset = constraints.maxWidth > 760
+                  ? (constraints.maxWidth - 760) / 2
+                  : 0.0;
+
+              return ListView(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalInset,
+                  0,
+                  horizontalInset,
+                  22,
+                ),
+                children: [
+                  _WorkoutCompletionPoster(
+                    workoutName: workoutName,
+                    completedExercises: completedExercises,
+                    completedSets: completedSets.length,
+                    totalVolume: totalVolume,
+                    durationLabel: durationLabel,
+                    muscleGroups: muscleStats.map((stat) => stat.name).toList(),
+                  ),
+                  if (muscleStats.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    MuscleBodyProgressMapCard(
+                      stats: muscleStats,
+                      title: 'Mapa do treino',
+                      subtitle: 'Partes trabalhadas hoje em verde',
+                      hideInactiveViews: true,
+                      showFrontView: bodyViews.showFront,
+                      showBackView: bodyViews.showBack,
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: FilledButton.icon(
+                      onPressed: saving ? null : onSave,
+                      icon: Icon(
+                        saving
+                            ? Icons.hourglass_top_rounded
+                            : Icons.save_rounded,
+                      ),
+                      label: saving
+                          ? const Text('Salvando...')
+                          : const Text('Salvar treino'),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutCompletionPoster extends StatelessWidget {
+  final String workoutName;
+  final int completedExercises;
+  final int completedSets;
+  final double totalVolume;
+  final String durationLabel;
+  final List<String> muscleGroups;
+
+  const _WorkoutCompletionPoster({
+    required this.workoutName,
+    required this.completedExercises,
+    required this.completedSets,
+    required this.totalVolume,
+    required this.durationLabel,
+    required this.muscleGroups,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: _sessionAccentColor.withValues(alpha: 0.30)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _sessionAccentColor.withValues(alpha: 0.18),
+            AppThemeColors.surfaceHigh.withValues(alpha: 0.98),
+            AppThemeColors.surface.withValues(alpha: 0.94),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _sessionAccentColor.withValues(alpha: 0.12),
+            blurRadius: 26,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: _sessionAccentColor.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: _sessionAccentColor.withValues(alpha: 0.30),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: _sessionAccentColor,
+                  size: 30,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
+                ),
+                child: Text(
+                  'MeuTreino+',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Treino concluido!',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            workoutName,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: AppThemeColors.primaryStrong,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _WorkoutCompletionMetricGrid(
+            metrics: [
+              _WorkoutCompletionMetricData(
+                icon: Icons.checklist_rounded,
+                label: 'Series',
+                value: '$completedSets',
+                accent: AppThemeColors.secondary,
+              ),
+              _WorkoutCompletionMetricData(
+                icon: Icons.timer_outlined,
+                label: 'Tempo',
+                value: durationLabel,
+                accent: _sessionAccentColor,
+              ),
+            ],
+          ),
+          if (muscleGroups.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: muscleGroups.map((group) {
+                return _WorkoutCompletionGroupChip(label: group);
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkoutCompletionMetricGrid extends StatelessWidget {
+  final List<_WorkoutCompletionMetricData> metrics;
+
+  const _WorkoutCompletionMetricGrid({required this.metrics});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 560 ? 4 : 2;
+        const spacing = 10.0;
+        final itemWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: metrics.map((metric) {
+            return SizedBox(
+              width: itemWidth,
+              child: _WorkoutCompletionMetric(data: metric),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _WorkoutCompletionMetricData {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color accent;
+
+  const _WorkoutCompletionMetricData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+}
+
+class _WorkoutCompletionMetric extends StatelessWidget {
+  final _WorkoutCompletionMetricData data;
+
+  const _WorkoutCompletionMetric({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 82),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(data.icon, color: data.accent, size: 20),
+          const SizedBox(height: 10),
+          Text(
+            data.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppThemeColors.textMuted),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            data.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: data.accent,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkoutCompletionGroupChip extends StatelessWidget {
+  final String label;
+
+  const _WorkoutCompletionGroupChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: _sessionAccentColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _sessionAccentColor.withValues(alpha: 0.26)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppThemeColors.primaryStrong,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+List<MuscleBodyProgressStat> _buildCompletionMuscleMapStats(
+  List<CompletedSetInput> completedSets,
+) {
+  final groupsByKey = <String, String>{};
+
+  for (final item in completedSets) {
+    final group = item.exercise.muscleGroup.trim();
+    if (group.isEmpty) continue;
+
+    groupsByKey.putIfAbsent(_normalizeCompletionText(group), () => group);
+  }
+
+  final groups = groupsByKey.values.toList()..sort();
+
+  return groups.map((group) {
+    return MuscleBodyProgressStat(
+      name: group,
+      color: _sessionAccentColor,
+      changeLabel: 'feito',
+    );
+  }).toList();
+}
+
+class _CompletionBodyViews {
+  final bool showFront;
+  final bool showBack;
+
+  const _CompletionBodyViews({required this.showFront, required this.showBack});
+}
+
+_CompletionBodyViews _resolveCompletionBodyViews(
+  List<CompletedSetInput> completedSets,
+) {
+  var showFront = false;
+  var showBack = false;
+
+  for (final item in completedSets) {
+    final group = _normalizeCompletionText(item.exercise.muscleGroup);
+    final region = _normalizeCompletionText(item.exercise.muscleRegion);
+
+    switch (group) {
+      case 'peito':
+      case 'biceps':
+      case 'abdomen':
+        showFront = true;
+        break;
+      case 'costas':
+        showBack = true;
+        break;
+      case 'triceps':
+        showBack = true;
+        break;
+      case 'ombro':
+        final isPosterior =
+            region.contains('posterior') || region.contains('trapezio');
+        final isAnterior =
+            region.contains('anterior') ||
+            region.contains('frontal') ||
+            region.contains('press');
+        final isLateral = region.contains('lateral');
+
+        showFront = showFront || isAnterior || isLateral || !isPosterior;
+        showBack = showBack || isPosterior || isLateral;
+        break;
+      case 'pernas':
+        final isPosterior =
+            region.contains('posterior') ||
+            region.contains('glute') ||
+            region.contains('flexora') ||
+            region.contains('isquio');
+        final isFront =
+            region.contains('quadriceps') ||
+            region.contains('adutor') ||
+            region.contains('abdutor') ||
+            region.contains('tibial') ||
+            region.contains('agachamento');
+        final isBoth =
+            region.contains('panturrilha') ||
+            region.contains('padrao') ||
+            region.contains('leg press');
+
+        showFront = showFront || isFront || isBoth || !isPosterior;
+        showBack = showBack || isPosterior || isBoth;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return _CompletionBodyViews(showFront: showFront, showBack: showBack);
+}
+
+String _normalizeCompletionText(String value) {
+  return value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp('[\u00e1\u00e0\u00e2\u00e3\u00e4]'), 'a')
+      .replaceAll(RegExp('[\u00e9\u00e8\u00ea\u00eb]'), 'e')
+      .replaceAll(RegExp('[\u00ed\u00ec\u00ee\u00ef]'), 'i')
+      .replaceAll(RegExp('[\u00f3\u00f2\u00f4\u00f5\u00f6]'), 'o')
+      .replaceAll(RegExp('[\u00fa\u00f9\u00fb\u00fc]'), 'u')
+      .replaceAll('\u00e7', 'c');
+}
+
+String _formatCompletionDuration(Duration duration) {
+  final totalMinutes = duration.inMinutes;
+
+  if (totalMinutes <= 0) {
+    return '<1 min';
+  }
+
+  if (totalMinutes < 60) {
+    return '$totalMinutes min';
+  }
+
+  final hours = totalMinutes ~/ 60;
+  final minutes = totalMinutes % 60;
+
+  if (minutes == 0) {
+    return '${hours}h';
+  }
+
+  return '${hours}h ${minutes}min';
+}
+
 class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     with WidgetsBindingObserver {
-  static const _accentColor = Color(0xFF22C55E);
-
   final _workoutService = WorkoutService();
   final _sessionService = WorkoutSessionService();
   final _draftService = WorkoutSessionDraftService();
@@ -1153,7 +1617,9 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   }
 
   int _completedSetsCountFor(String exerciseId) {
-    return _completedSets.where((item) => item.exercise.id == exerciseId).length;
+    return _completedSets
+        .where((item) => item.exercise.id == exerciseId)
+        .length;
   }
 
   bool _isExerciseCompleted(WorkoutExercise exercise) {
@@ -1213,7 +1679,8 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       return null;
     }
 
-    if (restTimerDraft.completedSetsCount != _completedSetsCountFor(exercise.id)) {
+    if (restTimerDraft.completedSetsCount !=
+        _completedSetsCountFor(exercise.id)) {
       return null;
     }
 
@@ -1267,7 +1734,8 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     }
 
     final weight =
-        double.tryParse(_weightController.text.trim().replaceAll(',', '.')) ?? 0;
+        double.tryParse(_weightController.text.trim().replaceAll(',', '.')) ??
+        0;
     final reps = int.tryParse(_repsController.text.trim()) ?? 0;
 
     if (reps <= 0) {
@@ -1381,48 +1849,12 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
         }
 
         if (isWorkoutCompleted) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Finalizar treino')),
-            body: SafeArea(
-              minimum: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      size: 72,
-                      color: _accentColor,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Treino concluido!',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '${_completedSets.length} series registradas',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: FilledButton.icon(
-                        onPressed: _saving ? null : _finishWorkout,
-                        icon: const Icon(Icons.save),
-                        label: _saving
-                            ? const Text('Salvando...')
-                            : const Text('Salvar treino'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          return _WorkoutCompletionScreen(
+            workoutName: widget.workout.name,
+            startedAt: _startedAt,
+            completedSets: _completedSets,
+            saving: _saving,
+            onSave: _finishWorkout,
           );
         }
 
@@ -1456,7 +1888,6 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
               ? null
               : () => _completeSet(exercise, exercises),
         );
-
       },
     );
   }
@@ -1475,4 +1906,3 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     return parts.join(' - ');
   }
 }
-
