@@ -1014,15 +1014,19 @@ class _WorkoutCompletionScreen extends StatelessWidget {
   final String workoutName;
   final DateTime startedAt;
   final List<CompletedSetInput> completedSets;
+  final bool saved;
   final bool saving;
   final VoidCallback onSave;
+  final VoidCallback onClose;
 
   const _WorkoutCompletionScreen({
     required this.workoutName,
     required this.startedAt,
     required this.completedSets,
+    required this.saved,
     required this.saving,
     required this.onSave,
+    required this.onClose,
   });
 
   @override
@@ -1042,7 +1046,6 @@ class _WorkoutCompletionScreen extends StatelessWidget {
     final bodyViews = _resolveCompletionBodyViews(completedSets);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Finalizar treino')),
       body: AppBackground(
         child: SafeArea(
           minimum: const EdgeInsets.fromLTRB(16, 10, 16, 18),
@@ -1084,15 +1087,13 @@ class _WorkoutCompletionScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: FilledButton.icon(
-                      onPressed: saving ? null : onSave,
-                      icon: Icon(
-                        saving
-                            ? Icons.hourglass_top_rounded
-                            : Icons.save_rounded,
-                      ),
-                      label: saving
-                          ? const Text('Salvando...')
-                          : const Text('Salvar treino'),
+                      onPressed: saving
+                          ? null
+                          : saved
+                          ? onClose
+                          : onSave,
+                      icon: Icon(_completionActionIcon(saving, saved)),
+                      label: Text(_completionActionLabel(saving, saved)),
                     ),
                   ),
                 ],
@@ -1103,6 +1104,30 @@ class _WorkoutCompletionScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _completionActionIcon(bool saving, bool saved) {
+  if (saving) {
+    return Icons.hourglass_top_rounded;
+  }
+
+  if (saved) {
+    return Icons.arrow_back_rounded;
+  }
+
+  return Icons.save_rounded;
+}
+
+String _completionActionLabel(bool saving, bool saved) {
+  if (saving) {
+    return 'Salvando automaticamente...';
+  }
+
+  if (saved) {
+    return 'Voltar';
+  }
+
+  return 'Salvar agora';
 }
 
 class _WorkoutCompletionPoster extends StatelessWidget {
@@ -1499,6 +1524,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   bool _draftLoaded = false;
   bool _draftApplied = false;
   bool _draftPersisted = false;
+  bool _autoFinishAttempted = false;
   bool _sessionSaved = false;
   bool _saving = false;
 
@@ -1754,10 +1780,15 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       ),
     );
 
+    final workoutCompleted = _isWorkoutCompleted(exercises);
+    if (workoutCompleted) {
+      _autoFinishAttempted = true;
+    }
+
     setState(() {
       _repsController.clear();
 
-      if (_isExerciseCompleted(exercise)) {
+      if (!workoutCompleted && _isExerciseCompleted(exercise)) {
         for (final item in exercises) {
           if (!_isExerciseCompleted(item)) {
             _selectedExerciseId = item.id;
@@ -1768,10 +1799,19 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
       }
     });
 
+    if (workoutCompleted) {
+      await _finishWorkout(popOnSuccess: false);
+      return;
+    }
+
     await _saveDraft();
   }
 
-  Future<void> _finishWorkout() async {
+  Future<void> _finishWorkout({bool popOnSuccess = true}) async {
+    if (_saving || _sessionSaved) {
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
@@ -1788,7 +1828,9 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
 
       if (!mounted) return;
 
-      Navigator.of(context).pop();
+      if (popOnSuccess) {
+        Navigator.of(context).pop();
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Treino salvo com sucesso.')),
@@ -1804,6 +1846,22 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
         setState(() => _saving = false);
       }
     }
+  }
+
+  void _scheduleAutomaticFinish() {
+    if (_autoFinishAttempted || _saving || _sessionSaved) {
+      return;
+    }
+
+    _autoFinishAttempted = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _saving || _sessionSaved) {
+        return;
+      }
+
+      unawaited(_finishWorkout(popOnSuccess: false));
+    });
   }
 
   @override
@@ -1849,12 +1907,18 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
         }
 
         if (isWorkoutCompleted) {
+          _scheduleAutomaticFinish();
+
           return _WorkoutCompletionScreen(
             workoutName: widget.workout.name,
             startedAt: _startedAt,
             completedSets: _completedSets,
+            saved: _sessionSaved,
             saving: _saving,
-            onSave: _finishWorkout,
+            onSave: () {
+              unawaited(_finishWorkout(popOnSuccess: false));
+            },
+            onClose: () => Navigator.of(context).pop(),
           );
         }
 
