@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../app/app_theme.dart';
 import '../../../core/navigation/app_navigation_state_service.dart';
 import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
@@ -431,105 +432,49 @@ class WorkoutDetailPage extends StatelessWidget {
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
-            itemCount: exercises.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (context, index) {
-              final exercise = exercises[index];
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 130),
+            children: [
+              _WorkoutDetailSummaryCard(
+                workout: workout,
+                exerciseCount: exercises.length,
+                totalSets: _totalSets(exercises),
+              ),
+              const SizedBox(height: 10),
+              ...exercises.map((exercise) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _WorkoutExerciseListCard(
+                    exercise: exercise,
+                    subtitle: _exerciseSubtitle(exercise),
+                    onMenuSelected: (value) {
+                      if (value == 'replace') {
+                        _replaceExercise(context: context, exercise: exercise);
+                      }
 
-              return Card(
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExerciseImage(imageAsset: exercise.imageAsset, height: 170),
-                    Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  exercise.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'replace') {
-                                    _replaceExercise(
-                                      context: context,
-                                      exercise: exercise,
-                                    );
-                                  }
+                      if (value == 'edit') {
+                        _editExerciseDialog(
+                          context: context,
+                          exercise: exercise,
+                        );
+                      }
 
-                                  if (value == 'edit') {
-                                    _editExerciseDialog(
-                                      context: context,
-                                      exercise: exercise,
-                                    );
-                                  }
-
-                                  if (value == 'delete') {
-                                    _deleteExercise(
-                                      context: context,
-                                      exercise: exercise,
-                                    );
-                                  }
-                                },
-                                itemBuilder: (context) => const [
-                                  PopupMenuItem(
-                                    value: 'replace',
-                                    child: Text('Trocar por similar'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Editar'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Excluir'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _exerciseSubtitle(exercise),
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${exercise.sets} series - ${exercise.targetReps} reps - ${exercise.restSeconds}s descanso',
-                          ),
-                          if (!exercise.isBodyweight) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              'Ultima carga: ${exercise.currentWeight.toStringAsFixed(1)} kg',
-                              style: const TextStyle(
-                                color: Color(0xFF22C55E),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      if (value == 'delete') {
+                        _deleteExercise(context: context, exercise: exercise);
+                      }
+                    },
+                  ),
+                );
+              }),
+            ],
           );
         },
       ),
     );
+  }
+
+  int _totalSets(List<WorkoutExercise> exercises) {
+    return exercises.fold(0, (total, exercise) => total + exercise.sets);
   }
 
   String _exerciseSubtitle(WorkoutExercise exercise) {
@@ -548,5 +493,231 @@ class WorkoutDetailPage extends StatelessWidget {
 
   String _normalize(String value) {
     return value.trim().toLowerCase();
+  }
+}
+
+class _WorkoutDetailSummaryCard extends StatelessWidget {
+  final Workout workout;
+  final int exerciseCount;
+  final int totalSets;
+
+  const _WorkoutDetailSummaryCard({
+    required this.workout,
+    required this.exerciseCount,
+    required this.totalSets,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final description = workout.description.trim().isEmpty
+        ? 'Sem descricao definida'
+        : workout.description.trim();
+    final exerciseLabel = exerciseCount == 1 ? 'exercicio' : 'exercicios';
+    final setsLabel = totalSets == 1 ? 'serie' : 'series';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppThemeColors.primary.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: AppThemeColors.primary.withValues(alpha: 0.18),
+                ),
+              ),
+              child: const Icon(
+                Icons.fitness_center_rounded,
+                color: AppThemeColors.primaryStrong,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppThemeColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '$exerciseCount $exerciseLabel - $totalSets $setsLabel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: AppThemeColors.primaryStrong,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutExerciseListCard extends StatelessWidget {
+  final WorkoutExercise exercise;
+  final String subtitle;
+  final ValueChanged<String> onMenuSelected;
+
+  const _WorkoutExerciseListCard({
+    required this.exercise,
+    required this.subtitle,
+    required this.onMenuSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final weightLabel = exercise.isBodyweight
+        ? 'Peso corporal'
+        : '${exercise.currentWeight.toStringAsFixed(1)} kg';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 10, 4, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppThemeColors.outlineStrong),
+              ),
+              child: ExerciseImage(
+                imageAsset: exercise.imageAsset,
+                width: 84,
+                height: 84,
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    exercise.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppThemeColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _ExerciseMetricChip(
+                        icon: Icons.repeat_rounded,
+                        label: '${exercise.sets}x ${exercise.targetReps}',
+                        tone: AppThemeColors.secondary,
+                      ),
+                      _ExerciseMetricChip(
+                        icon: Icons.timer_outlined,
+                        label: '${exercise.restSeconds}s',
+                        tone: AppThemeColors.warning,
+                      ),
+                      _ExerciseMetricChip(
+                        icon: exercise.isBodyweight
+                            ? Icons.accessibility_new_rounded
+                            : Icons.fitness_center_rounded,
+                        label: weightLabel,
+                        tone: AppThemeColors.primaryStrong,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Opcoes',
+              icon: const Icon(Icons.more_horiz_rounded),
+              padding: EdgeInsets.zero,
+              onSelected: onMenuSelected,
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'replace',
+                  child: Text('Trocar por similar'),
+                ),
+                PopupMenuItem(value: 'edit', child: Text('Editar')),
+                PopupMenuItem(value: 'delete', child: Text('Excluir')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExerciseMetricChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color tone;
+
+  const _ExerciseMetricChip({
+    required this.icon,
+    required this.label,
+    required this.tone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tone.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: tone),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: tone,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
