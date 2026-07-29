@@ -43,6 +43,7 @@ class _CompactWorkoutSessionScaffold extends StatelessWidget {
   final int completedExercises;
   final int completedSets;
   final int selectedCompletedSets;
+  final int? editingSetNumber;
   final double totalVolume;
   final _CompletedSetsFor completedSetsFor;
   final _ExerciseCompletionResolver isExerciseCompleted;
@@ -50,8 +51,10 @@ class _CompactWorkoutSessionScaffold extends StatelessWidget {
   final TextEditingController repsController;
   final RestTimerValue? restTimerValue;
   final ValueChanged<WorkoutExercise> onExerciseSelected;
+  final ValueChanged<int> onCompletedSetSelected;
   final ValueChanged<RestTimerValue> onRestTimerChanged;
   final VoidCallback? onCompleteSet;
+  final VoidCallback? onSaveSetEdit;
 
   const _CompactWorkoutSessionScaffold({
     required this.workoutName,
@@ -62,6 +65,7 @@ class _CompactWorkoutSessionScaffold extends StatelessWidget {
     required this.completedExercises,
     required this.completedSets,
     required this.selectedCompletedSets,
+    required this.editingSetNumber,
     required this.totalVolume,
     required this.completedSetsFor,
     required this.isExerciseCompleted,
@@ -69,8 +73,10 @@ class _CompactWorkoutSessionScaffold extends StatelessWidget {
     required this.repsController,
     required this.restTimerValue,
     required this.onExerciseSelected,
+    required this.onCompletedSetSelected,
     required this.onRestTimerChanged,
     required this.onCompleteSet,
+    required this.onSaveSetEdit,
   });
 
   @override
@@ -114,13 +120,16 @@ class _CompactWorkoutSessionScaffold extends StatelessWidget {
                       subtitle: subtitle,
                       currentSet: currentSet,
                       completedSets: selectedCompletedSets,
+                      editingSetNumber: editingSetNumber,
                       compact: compact,
                       weightController: weightController,
                       repsController: repsController,
                       isCompleted: isExerciseCompleted(selectedExercise),
                       restTimerValue: restTimerValue,
+                      onCompletedSetSelected: onCompletedSetSelected,
                       onRestTimerChanged: onRestTimerChanged,
                       onCompleteSet: onCompleteSet,
+                      onSaveSetEdit: onSaveSetEdit,
                     ),
                   ),
                 ],
@@ -554,26 +563,32 @@ class _ActiveExercisePanel extends StatelessWidget {
   final String subtitle;
   final int currentSet;
   final int completedSets;
+  final int? editingSetNumber;
   final bool compact;
   final TextEditingController weightController;
   final TextEditingController repsController;
   final bool isCompleted;
   final RestTimerValue? restTimerValue;
+  final ValueChanged<int> onCompletedSetSelected;
   final ValueChanged<RestTimerValue> onRestTimerChanged;
   final VoidCallback? onCompleteSet;
+  final VoidCallback? onSaveSetEdit;
 
   const _ActiveExercisePanel({
     required this.exercise,
     required this.subtitle,
     required this.currentSet,
     required this.completedSets,
+    required this.editingSetNumber,
     required this.compact,
     required this.weightController,
     required this.repsController,
     required this.isCompleted,
     required this.restTimerValue,
+    required this.onCompletedSetSelected,
     required this.onRestTimerChanged,
     required this.onCompleteSet,
+    required this.onSaveSetEdit,
   });
 
   @override
@@ -613,12 +628,15 @@ class _ActiveExercisePanel extends StatelessWidget {
                 exercise: exercise,
                 subtitle: subtitle,
                 currentSet: currentSet,
+                editingSetNumber: editingSetNumber,
                 compact: compact || tight,
               ),
               SizedBox(height: tight ? 8 : 10),
               _SetProgressBar(
                 completedSets: completedSets,
                 totalSets: exercise.sets,
+                selectedSetNumber: editingSetNumber,
+                onCompletedSetSelected: onCompletedSetSelected,
                 compact: compact || tight,
               ),
               if (exercise.notes.trim().isNotEmpty && !tight) ...[
@@ -639,7 +657,9 @@ class _ActiveExercisePanel extends StatelessWidget {
                 weightController: weightController,
                 repsController: repsController,
                 isCompleted: isCompleted,
+                editingSetNumber: editingSetNumber,
                 onCompleteSet: onCompleteSet,
+                onSaveSetEdit: onSaveSetEdit,
               ),
               SizedBox(height: tight ? 8 : 10),
               RestTimer(
@@ -661,12 +681,14 @@ class _ExerciseInfoBlock extends StatelessWidget {
   final WorkoutExercise exercise;
   final String subtitle;
   final int currentSet;
+  final int? editingSetNumber;
   final bool compact;
 
   const _ExerciseInfoBlock({
     required this.exercise,
     required this.subtitle,
     required this.currentSet,
+    required this.editingSetNumber,
     required this.compact,
   });
 
@@ -678,7 +700,9 @@ class _ExerciseInfoBlock extends StatelessWidget {
         Row(
           children: [
             _InfoPill(
-              label: 'Serie $currentSet/${exercise.sets}',
+              label: editingSetNumber == null
+                  ? 'Serie $currentSet/${exercise.sets}'
+                  : 'Editando $editingSetNumber/${exercise.sets}',
               filled: true,
               compact: compact,
             ),
@@ -864,11 +888,15 @@ class _InfoPill extends StatelessWidget {
 class _SetProgressBar extends StatelessWidget {
   final int completedSets;
   final int totalSets;
+  final int? selectedSetNumber;
+  final ValueChanged<int> onCompletedSetSelected;
   final bool compact;
 
   const _SetProgressBar({
     required this.completedSets,
     required this.totalSets,
+    required this.selectedSetNumber,
+    required this.onCompletedSetSelected,
     required this.compact,
   });
 
@@ -879,21 +907,65 @@ class _SetProgressBar extends StatelessWidget {
     return Row(
       children: List.generate(normalizedTotal, (index) {
         final completed = index < completedSets;
+        final setNumber = index + 1;
+        final selected = completed && selectedSetNumber == setNumber;
 
         return Expanded(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            height: compact ? 7 : 8,
-            margin: EdgeInsets.only(
-              right: index == normalizedTotal - 1 ? 0 : 6,
-            ),
-            decoration: BoxDecoration(
-              color: completed ? _sessionAccentColor : const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: completed
-                    ? _sessionAccentColor.withValues(alpha: 0.4)
-                    : _sessionPanelBorderColor,
+          child: Semantics(
+            button: completed,
+            selected: selected,
+            label: completed
+                ? 'Editar serie $setNumber'
+                : 'Serie $setNumber pendente',
+            child: Tooltip(
+              message: completed
+                  ? 'Editar serie $setNumber'
+                  : 'Serie $setNumber pendente',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: completed
+                    ? () => onCompletedSetSelected(setNumber)
+                    : null,
+                child: SizedBox(
+                  height: compact ? 20 : 22,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      height: selected
+                          ? (compact ? 12 : 13)
+                          : (compact ? 7 : 8),
+                      margin: EdgeInsets.only(
+                        right: index == normalizedTotal - 1 ? 0 : 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: completed
+                            ? _sessionAccentColor
+                            : const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: selected
+                              ? Colors.white.withValues(alpha: 0.78)
+                              : completed
+                              ? _sessionAccentColor.withValues(alpha: 0.4)
+                              : _sessionPanelBorderColor,
+                          width: selected ? 1.3 : 1,
+                        ),
+                        boxShadow: selected
+                            ? [
+                                BoxShadow(
+                                  color: _sessionAccentColor.withValues(
+                                    alpha: 0.26,
+                                  ),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -909,7 +981,9 @@ class _SetEntryRow extends StatelessWidget {
   final TextEditingController weightController;
   final TextEditingController repsController;
   final bool isCompleted;
+  final int? editingSetNumber;
   final VoidCallback? onCompleteSet;
+  final VoidCallback? onSaveSetEdit;
 
   const _SetEntryRow({
     required this.exercise,
@@ -917,7 +991,9 @@ class _SetEntryRow extends StatelessWidget {
     required this.weightController,
     required this.repsController,
     required this.isCompleted,
+    required this.editingSetNumber,
     required this.onCompleteSet,
+    required this.onSaveSetEdit,
   });
 
   @override
@@ -925,6 +1001,7 @@ class _SetEntryRow extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final actionWidth = constraints.maxWidth < 340 ? 104.0 : 124.0;
+        final isEditing = editingSetNumber != null;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -952,11 +1029,27 @@ class _SetEntryRow extends StatelessWidget {
               width: actionWidth,
               height: 52,
               child: FilledButton.icon(
-                onPressed: isCompleted ? null : onCompleteSet,
-                icon: Icon(isCompleted ? Icons.check_circle : Icons.check),
+                onPressed: isEditing
+                    ? onSaveSetEdit
+                    : isCompleted
+                    ? null
+                    : onCompleteSet,
+                icon: Icon(
+                  isEditing
+                      ? Icons.save_rounded
+                      : isCompleted
+                      ? Icons.check_circle
+                      : Icons.check,
+                ),
                 label: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(isCompleted ? 'Feito' : 'Registrar'),
+                  child: Text(
+                    isEditing
+                        ? 'Salvar'
+                        : isCompleted
+                        ? 'Feito'
+                        : 'Registrar',
+                  ),
                 ),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1519,6 +1612,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
   late DateTime _startedAt;
 
   String? _selectedExerciseId;
+  int? _editingSetIndex;
   WorkoutSessionDraft? _pendingDraft;
   WorkoutSessionRestDraft? _restTimerDraft;
   bool _draftLoaded = false;
@@ -1648,6 +1742,42 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
         .length;
   }
 
+  int? _completedSetIndexFor(WorkoutExercise exercise, int setNumber) {
+    var exerciseSetNumber = 0;
+
+    for (var index = 0; index < _completedSets.length; index++) {
+      final item = _completedSets[index];
+      if (item.exercise.id != exercise.id) {
+        continue;
+      }
+
+      exerciseSetNumber++;
+      if (exerciseSetNumber == setNumber) {
+        return index;
+      }
+    }
+
+    return null;
+  }
+
+  CompletedSetInput? get _editingSet {
+    final index = _editingSetIndex;
+    if (index == null || index < 0 || index >= _completedSets.length) {
+      return null;
+    }
+
+    return _completedSets[index];
+  }
+
+  int? _editingSetNumberFor(WorkoutExercise exercise) {
+    final editingSet = _editingSet;
+    if (editingSet == null || editingSet.exercise.id != exercise.id) {
+      return null;
+    }
+
+    return editingSet.setNumber;
+  }
+
   bool _isExerciseCompleted(WorkoutExercise exercise) {
     return _completedSetsCountFor(exercise.id) >= exercise.sets;
   }
@@ -1687,10 +1817,35 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     _repsController.clear();
   }
 
+  void _loadCompletedSetFields(CompletedSetInput completedSet) {
+    if (completedSet.exercise.isBodyweight) {
+      _weightController.clear();
+    } else {
+      _weightController.text = _formatWeight(completedSet.weight);
+    }
+    _repsController.text = completedSet.reps.toString();
+  }
+
   void _selectExercise(WorkoutExercise exercise) {
     setState(() {
       _selectedExerciseId = exercise.id;
+      _editingSetIndex = null;
       _loadExerciseFields(exercise);
+    });
+    unawaited(_saveDraft());
+  }
+
+  void _selectCompletedSetForEdit(WorkoutExercise exercise, int setNumber) {
+    final setIndex = _completedSetIndexFor(exercise, setNumber);
+
+    if (setIndex == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedExerciseId = exercise.id;
+      _editingSetIndex = setIndex;
+      _loadCompletedSetFields(_completedSets[setIndex]);
     });
     unawaited(_saveDraft());
   }
@@ -1786,6 +1941,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     }
 
     setState(() {
+      _editingSetIndex = null;
       _repsController.clear();
 
       if (!workoutCompleted && _isExerciseCompleted(exercise)) {
@@ -1805,6 +1961,50 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
     }
 
     await _saveDraft();
+  }
+
+  Future<void> _saveEditedSet(WorkoutExercise exercise) async {
+    final editingIndex = _editingSetIndex;
+
+    if (editingIndex == null ||
+        editingIndex < 0 ||
+        editingIndex >= _completedSets.length ||
+        _completedSets[editingIndex].exercise.id != exercise.id) {
+      return;
+    }
+
+    final weight =
+        double.tryParse(_weightController.text.trim().replaceAll(',', '.')) ??
+        0;
+    final reps = int.tryParse(_repsController.text.trim()) ?? 0;
+
+    if (reps <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe as repeticoes realizadas.')),
+      );
+      return;
+    }
+
+    final originalSet = _completedSets[editingIndex];
+
+    setState(() {
+      _completedSets[editingIndex] = CompletedSetInput(
+        exercise: originalSet.exercise,
+        setNumber: originalSet.setNumber,
+        weight: weight,
+        reps: reps,
+      );
+      _editingSetIndex = null;
+      _loadExerciseFields(exercise);
+    });
+
+    await _saveDraft();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Serie ${originalSet.setNumber} atualizada.')),
+    );
   }
 
   Future<void> _finishWorkout({bool popOnSuccess = true}) async {
@@ -1924,6 +2124,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
 
         final exercise = _resolveSelectedExercise(exercises);
         final currentSet = _nextSetNumberFor(exercise);
+        final editingSetNumber = _editingSetNumberFor(exercise);
         final completedExercises = exercises.where(_isExerciseCompleted).length;
         final totalVolume = _completedSets.fold<double>(
           0,
@@ -1939,6 +2140,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
           completedExercises: completedExercises,
           completedSets: _completedSets.length,
           selectedCompletedSets: _completedSetsCountFor(exercise.id),
+          editingSetNumber: editingSetNumber,
           totalVolume: totalVolume,
           completedSetsFor: _completedSetsCountFor,
           isExerciseCompleted: _isExerciseCompleted,
@@ -1946,11 +2148,16 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
           repsController: _repsController,
           restTimerValue: _restTimerValueFor(exercise),
           onExerciseSelected: _selectExercise,
+          onCompletedSetSelected: (setNumber) =>
+              _selectCompletedSetForEdit(exercise, setNumber),
           onRestTimerChanged: (value) =>
               _handleRestTimerChanged(exercise, value),
           onCompleteSet: _isExerciseCompleted(exercise)
               ? null
               : () => _completeSet(exercise, exercises),
+          onSaveSetEdit: editingSetNumber == null
+              ? null
+              : () => _saveEditedSet(exercise),
         );
       },
     );
