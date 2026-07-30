@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/app_theme.dart';
 import '../../../core/models/rest_timer_value.dart';
 import '../../../core/widgets/app_background.dart';
+import '../../../core/widgets/app_page_scaffold.dart';
 import '../../../core/widgets/exercise_image.dart';
 import '../../../core/widgets/rest_timer.dart';
 import '../../history/presentation/muscle_body_progress_map_card.dart';
@@ -82,59 +83,70 @@ class _CompactWorkoutSessionScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(workoutName)),
       body: AppBackground(
         child: SafeArea(
           minimum: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact =
-                  constraints.maxHeight < 690 || constraints.maxWidth < 360;
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppPageIdentifier(
+                title: workoutName,
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact =
+                        constraints.maxHeight < 690 ||
+                        constraints.maxWidth < 360;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _SessionSummaryStrip(
-                    completedExercises: completedExercises,
-                    totalExercises: exercises.length,
-                    completedSets: completedSets,
-                    totalVolume: totalVolume,
-                    compact: compact,
-                  ),
-                  SizedBox(height: compact ? 8 : 10),
-                  SizedBox(
-                    height: compact ? 76 : 88,
-                    child: _ExerciseSelectorStrip(
-                      exercises: exercises,
-                      selectedExercise: selectedExercise,
-                      completedSetsFor: completedSetsFor,
-                      isExerciseCompleted: isExerciseCompleted,
-                      onSelected: onExerciseSelected,
-                      compact: compact,
-                    ),
-                  ),
-                  SizedBox(height: compact ? 8 : 10),
-                  Expanded(
-                    child: _ActiveExercisePanel(
-                      exercise: selectedExercise,
-                      subtitle: subtitle,
-                      currentSet: currentSet,
-                      completedSets: selectedCompletedSets,
-                      editingSetNumber: editingSetNumber,
-                      compact: compact,
-                      weightController: weightController,
-                      repsController: repsController,
-                      isCompleted: isExerciseCompleted(selectedExercise),
-                      restTimerValue: restTimerValue,
-                      onCompletedSetSelected: onCompletedSetSelected,
-                      onRestTimerChanged: onRestTimerChanged,
-                      onCompleteSet: onCompleteSet,
-                      onSaveSetEdit: onSaveSetEdit,
-                    ),
-                  ),
-                ],
-              );
-            },
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _SessionSummaryStrip(
+                          completedExercises: completedExercises,
+                          totalExercises: exercises.length,
+                          completedSets: completedSets,
+                          totalVolume: totalVolume,
+                          compact: compact,
+                        ),
+                        SizedBox(height: compact ? 8 : 10),
+                        SizedBox(
+                          height: compact ? 76 : 88,
+                          child: _ExerciseSelectorStrip(
+                            exercises: exercises,
+                            selectedExercise: selectedExercise,
+                            completedSetsFor: completedSetsFor,
+                            isExerciseCompleted: isExerciseCompleted,
+                            onSelected: onExerciseSelected,
+                            compact: compact,
+                          ),
+                        ),
+                        SizedBox(height: compact ? 8 : 10),
+                        Expanded(
+                          child: _ActiveExercisePanel(
+                            exercise: selectedExercise,
+                            subtitle: subtitle,
+                            currentSet: currentSet,
+                            completedSets: selectedCompletedSets,
+                            editingSetNumber: editingSetNumber,
+                            compact: compact,
+                            weightController: weightController,
+                            repsController: repsController,
+                            isCompleted: isExerciseCompleted(selectedExercise),
+                            restTimerValue: restTimerValue,
+                            onCompletedSetSelected: onCompletedSetSelected,
+                            onRestTimerChanged: onRestTimerChanged,
+                            onCompleteSet: onCompleteSet,
+                            onSaveSetEdit: onSaveSetEdit,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2080,10 +2092,21 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage>
         final exercises = snapshot.data!;
 
         if (exercises.isEmpty) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Treino')),
-            body: const Center(
-              child: Text('Este treino nao possui exercicios.'),
+          return const Scaffold(
+            body: AppBackground(
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppPageIdentifier(title: 'Treino'),
+                    Expanded(
+                      child: Center(
+                        child: Text('Este treino nao possui exercicios.'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }

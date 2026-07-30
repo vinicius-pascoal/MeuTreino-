@@ -34,7 +34,6 @@ class AppPageScaffold extends StatelessWidget {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(title: Text(title), actions: actions),
       floatingActionButton: floatingActionButton == null
           ? null
           : Padding(
@@ -44,7 +43,16 @@ class AppPageScaffold extends StatelessWidget {
               child: floatingActionButton!,
             ),
       body: AppBackground(
-        child: SafeArea(bottom: false, child: body),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppPageIdentifier(title: title, actions: actions),
+              Expanded(child: body),
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar:
           bottomAction == null && bottomNavigationBar == null
@@ -72,6 +80,57 @@ class AppPageScaffold extends StatelessWidget {
                     if (bottomNavigationBar != null) bottomNavigationBar!,
                   ],
                 ),
+    );
+  }
+}
+
+class AppPageIdentifier extends StatelessWidget {
+  final String title;
+  final List<Widget>? actions;
+  final EdgeInsetsGeometry padding;
+
+  const AppPageIdentifier({
+    super.key,
+    required this.title,
+    this.actions,
+    this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 6),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final trailingActions = actions ?? const <Widget>[];
+
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppThemeColors.primary,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (trailingActions.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            ...trailingActions,
+          ],
+        ],
+      ),
     );
   }
 }
